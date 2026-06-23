@@ -7,7 +7,7 @@ import os
 import requests
 import schedule
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone VN_TZ = timezone(timedelta(hours=7))
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -77,7 +77,7 @@ def extract_cost_per_action(cost_list: list, action_type: str) -> float:
 
 def build_report(period_label: str = "Hôm qua") -> str:
     """Tổng hợp báo cáo thành chuỗi text"""
-    yesterday = datetime.now() - timedelta(days=1)
+    yesterday = datetime.now(VN_TZ) - timedelta(days=1)
     date_str  = yesterday.strftime("%Y-%m-%d")
     display   = yesterday.strftime("%d/%m/%Y")
 
@@ -147,11 +147,11 @@ AD_ACCOUNTS = [
 ]
 
 def daily_job():
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] Đang lấy dữ liệu Meta Ads...")
-    date_display = (datetime.now() - timedelta(days=1)).strftime('%d/%m/%Y')
-    full_report = (
-        f"📊 *BÁO CÁO META ADS – {date_display}*\n"
-        f"🕐 Cập nhật lúc {datetime.now().strftime('%H:%M')}\n"
+    print(f"[{datetime.now(VN_TZ).strftime('%H:%M:%S')}] Đang lấy dữ liệu Ads...")
+  date_display = (datetime.now(VN_TZ) - timedelta(days=1)).strftime('%d/%m/%Y')
+full_report = (
+    f"📊 *BÁO CÁO META ADS – {date_display}*\n"
+    f"🕐 Cập nhật lúc {datetime.now(VN_TZ).strftime('%H:%M')}\n"
         f"{'═' * 32}\n\n"
     )
 
