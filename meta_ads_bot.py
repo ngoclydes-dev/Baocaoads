@@ -7,7 +7,8 @@ import os
 import requests
 import schedule
 import time
-from datetime import datetime, timedelta, timezone VN_TZ = timezone(timedelta(hours=7))
+from datetime import datetime, timedelta, timezone
+VN_TZ = timezone(timedelta(hours=7))
 from dotenv import load_dotenv
 
 load_dotenv()
