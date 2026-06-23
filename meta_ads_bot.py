@@ -200,8 +200,4 @@ if __name__ == "__main__":
     # Chạy ngay lần đầu để test
     daily_job()
 
-    schedule.every().day.at(REPORT_TIME).do(daily_job)
-
-    while True:
-        schedule.run_pending()
-        time.sleep(60)
+ 
