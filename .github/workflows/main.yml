@@ -1,0 +1,31 @@
+name: Meta Ads Daily Report
+
+on:
+  schedule:
+    - cron: '30 0 * * *'  # 7:30 sáng giờ VN (UTC+7)
+  workflow_dispatch:       # cho phép chạy thủ công để test
+
+jobs:
+  send-report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run bot
+        env:
+          META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+          AD_ACCOUNT_1: ${{ secrets.AD_ACCOUNT_1 }}
+          AD_ACCOUNT_2: ${{ secrets.AD_ACCOUNT_2 }}
+          AD_ACCOUNT_3: ${{ secrets.AD_ACCOUNT_3 }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          REPORT_TIME: "07:30"
+        run: python meta_ads_bot.py
