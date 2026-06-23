@@ -149,10 +149,10 @@ AD_ACCOUNTS = [
 
 def daily_job():
     print(f"[{datetime.now(VN_TZ).strftime('%H:%M:%S')}] Đang lấy dữ liệu Ads...")
-  date_display = (datetime.now(VN_TZ) - timedelta(days=1)).strftime('%d/%m/%Y')
-full_report = (
-    f"📊 *BÁO CÁO META ADS – {date_display}*\n"
-    f"🕐 Cập nhật lúc {datetime.now(VN_TZ).strftime('%H:%M')}\n"
+    date_display = (datetime.now(VN_TZ) - timedelta(days=1)).strftime('%d/%m/%Y')
+    full_report = (
+        f"📊 *BÁO CÁO META ADS – {date_display}*\n"
+        f"🕐 Cập nhật lúc {datetime.now(VN_TZ).strftime('%H:%M')}\n"
         f"{'═' * 32}\n\n"
     )
 
