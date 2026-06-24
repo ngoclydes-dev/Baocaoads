@@ -266,5 +266,24 @@ def listen_callbacks():
 # ─── MAIN ───────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    print(f"🤖 Meta Ads Bot khởi động – báo cáo lúc {REPORT_TIME} mỗi ngày")
-    daily_job()
+    period = os.getenv("PERIOD", "daily")
+    print(f"🤖 Chạy với period: {period}")
+
+    if period == "period_7":
+        date_start, date_stop = get_dates(7)
+        report = build_report(date_start, date_stop, "7 ngày qua")
+        send_telegram(report)
+
+    elif period == "period_14":
+        date_start, date_stop = get_dates(14)
+        report = build_report(date_start, date_stop, "14 ngày qua")
+        send_telegram(report)
+
+    elif period == "period_month":
+        date_start, date_stop = get_dates(0)
+        report = build_report(date_start, date_stop, "Trong tháng")
+        send_telegram(report)
+
+    else:
+        # Mặc định: báo cáo hằng ngày
+        daily_job()
