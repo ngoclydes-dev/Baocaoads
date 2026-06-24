@@ -3,7 +3,12 @@ name: Meta Ads Daily Report
 on:
   schedule:
     - cron: '30 0 * * *'
-  workflow_dispatch:       # cho phép chạy thủ công để test
+  workflow_dispatch:
+    inputs:
+      period:
+        description: 'Period to report'
+        required: false
+        default: 'daily'
 
 jobs:
   send-report:
@@ -25,7 +30,9 @@ jobs:
           AD_ACCOUNT_1: ${{ secrets.AD_ACCOUNT_1 }}
           AD_ACCOUNT_2: ${{ secrets.AD_ACCOUNT_2 }}
           AD_ACCOUNT_3: ${{ secrets.AD_ACCOUNT_3 }}
+          AD_ACCOUNT_4: ${{ secrets.AD_ACCOUNT_4 }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           REPORT_TIME: "07:30"
+          PERIOD: ${{ github.event.inputs.period || 'daily' }}
         run: python meta_ads_bot.py
