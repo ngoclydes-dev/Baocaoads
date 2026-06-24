@@ -267,16 +267,4 @@ def listen_callbacks():
 
 if __name__ == "__main__":
     print(f"🤖 Meta Ads Bot khởi động – báo cáo lúc {REPORT_TIME} mỗi ngày")
-
-    # Bỏ comment dòng dưới để test ngay
-    # daily_job()
-
-    # Lắng nghe nút bấm trong thread riêng
-    t = threading.Thread(target=listen_callbacks, daemon=True)
-    t.start()
-
-    schedule.every().day.at(REPORT_TIME).do(daily_job)
-
-    while True:
-        schedule.run_pending()
-        time.sleep(60)
+    daily_job()
