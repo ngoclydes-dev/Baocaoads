@@ -36,4 +36,5 @@ jobs:
           REPORT_TIME: "07:30"
           PERIOD: ${{ github.event.inputs.period || 'daily' }}
         run: python meta_ads_bot.py
+
         
