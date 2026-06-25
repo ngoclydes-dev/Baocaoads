@@ -2,7 +2,7 @@ name: Meta Ads Daily Report
 
 on:
   schedule:
-  - cron: '50 2 * * *'   # 9:50 sáng giờ VN
+    - cron: '2 3 * * *'
   workflow_dispatch:
     inputs:
       period:
