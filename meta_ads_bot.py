@@ -228,7 +228,6 @@ def check_spending_alert():
             continue
         try:
             info         = get_account_billing(account_id)
-            print(f"Tài khoản {i}: spend_cap={info.get('spend_cap')}, amount_spent={info.get('amount_spent')}, balance={info.get('balance')}")
             name         = info.get("name", f"Tài khoản {i}")
             currency     = info.get("currency", "VND")
             spend_cap    = float(info.get("spend_cap", 0))
