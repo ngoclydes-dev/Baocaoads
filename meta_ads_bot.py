@@ -269,6 +269,7 @@ def daily_job():
         date_start, date_stop = get_dates(1)
         report = build_report(date_start, date_stop, "Hôm qua")
         send_telegram_with_buttons(report)
+        check_spending_alert()
         print("✅ Đã gửi báo cáo lên Telegram.")
     except Exception as e:
         print(f"❌ Lỗi: {e}")
