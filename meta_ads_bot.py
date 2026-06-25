@@ -44,7 +44,19 @@ def get_account_info():
     resp = requests.get(url, params=params, timeout=30)
     resp.raise_for_status()
     return resp.json()
-
+    
+def get_account_billing(account_id: str) -> dict:
+    """Lấy thông tin hạn mức và số dư tài khoản"""
+    global AD_ACCOUNT_ID
+    AD_ACCOUNT_ID = account_id
+    url = f"{META_BASE_URL}/{AD_ACCOUNT_ID}"
+    params = {
+        "fields": "name,currency,spend_cap,amount_spent,balance",
+        "access_token": META_ACCESS_TOKEN,
+    }
+    resp = requests.get(url, params=params, timeout=30)
+    resp.raise_for_status()
+    return resp.json()
 
 def get_insights(date_start: str, date_stop: str):
     url = f"{META_BASE_URL}/{AD_ACCOUNT_ID}/insights"
@@ -205,7 +217,52 @@ def answer_callback(callback_query_id: str):
 
 
 # ─── JOB ────────────────────────────────────────────────────
+ALERT_THRESHOLD = 1_000_000  # Cảnh báo khi còn dưới 1 triệu VND
 
+def check_spending_alert():
+    """Kiểm tra và gửi cảnh báo nếu sắp đạt ngưỡng thanh toán"""
+    alerts = []
+
+    for i, account_id in enumerate(AD_ACCOUNTS, 1):
+        if not account_id:
+            continue
+        try:
+            info         = get_account_billing(account_id)
+            name         = info.get("name", f"Tài khoản {i}")
+            currency     = info.get("currency", "VND")
+            spend_cap    = float(info.get("spend_cap", 0))
+            amount_spent = float(info.get("amount_spent", 0))
+            balance      = float(info.get("balance", 0))
+
+            if spend_cap > 0:
+                remaining = spend_cap - amount_spent
+                percent   = (amount_spent / spend_cap) * 100
+                if remaining <= ALERT_THRESHOLD:
+                    alerts.append(
+                        f"⚠️ *{name}*\n"
+                        f"💸 Đã chi: {amount_spent:,.0f} / {spend_cap:,.0f} {currency}\n"
+                        f"📊 Đã dùng: {percent:.1f}%\n"
+                        f"🔴 Còn lại: {remaining:,.0f} {currency}\n"
+                    )
+            elif balance > 0:
+                if balance <= ALERT_THRESHOLD:
+                    alerts.append(
+                        f"⚠️ *{name}*\n"
+                        f"🔴 Số dư còn lại: {balance:,.0f} {currency}\n"
+                    )
+        except Exception as e:
+            print(f"❌ Lỗi kiểm tra billing tài khoản {i}: {e}")
+
+    if alerts:
+        msg  = "🚨 *CẢNH BÁO NGƯỠNG THANH TOÁN*\n"
+        msg += "═" * 32 + "\n\n"
+        msg += "\n".join(alerts)
+        msg += "\n💳 Vui lòng nạp tiền để tránh gián đoạn quảng cáo!"
+        send_telegram(msg)
+        print("✅ Đã gửi cảnh báo ngưỡng thanh toán!")
+    else:
+        print("✅ Tất cả tài khoản còn trong ngưỡng an toàn.")
+        
 def daily_job():
     print(f"[{datetime.now(VN_TZ).strftime('%H:%M:%S')}] Đang lấy dữ liệu Meta Ads...")
     try:
