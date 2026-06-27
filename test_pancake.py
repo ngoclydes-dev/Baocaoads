@@ -84,23 +84,20 @@ def get_page_tags(page_id: str):
     resp.raise_for_status()
     return resp.json()
 
-
 if __name__ == "__main__":
     page_id = "108481465282735"
-    target_id_fragment = "27074539515530298"  # ID khách hàng bạn cung cấp
+    target_id_fragment = "27074539515530298"
 
     convs = get_pancake_conversations(page_id, limit=200)
 
-    print("Tổng conversation lấy được:", len(convs))
+    print("Tong conversation lay duoc:", len(convs))
 
-    # 1. Liệt kê tất cả tag ID xuất hiện
     all_tags = set()
     for c in convs:
         all_tags.update(c.get("tags", []))
-    print("Tất cả tag ID xuất hiện:", sorted(all_tags))
-    print("Tag 17 có xuất hiện không:", 17 in all_tags)
+    print("Tat ca tag ID xuat hien:", sorted(all_tags))
+    print("Tag 17 co xuat hien khong:", 17 in all_tags)
 
-    # 2. Tìm conversation có ID khớp với target
     found = None
     for c in convs:
         conv_id = c.get("id", "")
@@ -110,13 +107,14 @@ if __name__ == "__main__":
             found = c
             break
 
-    print("\n=== Tìm conversation theo ID khách hàng ===")
+    print("")
+    print("=== Tim conversation theo ID khach hang ===")
     if found:
-        print("TÌM THẤY trong 200 conversation gần nhất!")
+        print("TIM THAY trong 200 conversation gan nhat!")
         print("ID:", found.get("id"))
         print("Tags:", found.get("tags"))
         print("inserted_at:", found.get("inserted_at"))
         print("updated_at:", found.get("updated_at"))
     else:
-        print("KHÔNG tìm thấy trong 200 conversation gần nhất.")
-        print("→ Conversation SPAM này không nằm trong danh sách API
+        print("KHONG tim thay trong 200 conversation gan nhat.")
+        print("Conversation SPAM nay khong nam trong danh sach API tra ve, du da lay 200 cai gan nhat.")
