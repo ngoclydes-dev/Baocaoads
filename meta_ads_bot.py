@@ -197,8 +197,7 @@ def send_telegram(message: str):
     resp = requests.post(url, json=payload, timeout=30)
     resp.raise_for_status()
     return resp.json()
-
-
+    
 def send_telegram_with_buttons(message: str):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {
@@ -286,6 +285,8 @@ def daily_job():
     try:
         date_start, date_stop = get_dates(1)
         report = build_report(date_start, date_stop, "Hôm qua")
+        print("=== NỘI DUNG TIN NHẮN ===")
+        print(repr(report)) 
         send_telegram_with_buttons(report)
         check_spending_alert()
         print("✅ Đã gửi báo cáo lên Telegram.")
