@@ -86,33 +86,7 @@ def get_page_tags(page_id: str):
 
 
 if __name__ == "__main__":
-    page_id = "108481465282735"  # Quang Trung Gò Vấp - đúng page trong network request bạn chụp
-    url = f"https://pancake.vn/api/v1/pages/{page_id}/conversations"
-
-    # Gọi giống y hệt request thật trên browser
-    params = {
-        "unread_first": "true",
-        "mode": "NONE",
-        "tags": "[17]",
-        "except_tags": "[]",
-        "access_token": PANCAKE_TOKEN,
-        "limit": 50,
-    }
-    resp = requests.get(url, params=params, timeout=30)
-    print("Status code:", resp.status_code)
-    print("Request URL thực tế:", resp.url)
-
-    data = resp.json()
-    convs = data.get("conversations", [])
-    print("Tổng conversation trả về:", len(convs))
-
-    # Kiểm tra từng conversation có thật chứa tag 17 không
-    has_17 = [c.get("id") for c in convs if 17 in c.get("tags", [])]
-    no_17 = [c.get("id") for c in convs if 17 not in c.get("tags", [])]
-    print("Số conversation CÓ tag 17:", len(has_17))
-    print("Số conversation KHÔNG có tag 17:", len(no_17))
-
-    if no_17:
-        # In thử 1 mẫu không có tag 17 để xem nó thật ra có tag gì
-        sample = next(c for c in convs if 17 not in c.get("tags", []))
-        print("Mẫu KHÔNG có tag 17 - tags thật:", sample.get("tags"))
+    yesterday = (datetime.now(VN_TZ) - timedelta(days=1)).strftime("%Y-%m-%d")
+    for page in PANCAKE_PAGES:
+        result = get_pancake_spam_and_phones(page["id"], yesterday)
+        print(page["name"], "→ SPAM:", result["spam"], "| SĐT:", len(result["phones"]))
