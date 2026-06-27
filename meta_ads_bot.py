@@ -51,7 +51,7 @@ def get_account_billing(account_id: str) -> dict:
     AD_ACCOUNT_ID = account_id
     url = f"{META_BASE_URL}/{AD_ACCOUNT_ID}"
     params = {
-        "fields": "name,currency,spend_cap,amount_spent,balance",
+        "fields": "name,currency,spend_cap,amount_spent,balance,next_bill_date",
         "access_token": META_ACCESS_TOKEN,
     }
     resp = requests.get(url, params=params, timeout=30)
@@ -249,6 +249,17 @@ def check_spending_alert():
                     alerts.append(
                         f"⚠️ *{name}*\n"
                         f"🔴 Số dư còn lại: {balance:,.0f} {currency}\n"
+                    )
+                    # Kiểm tra ngày thanh toán
+            next_bill_date = info.get("next_bill_date")
+            if next_bill_date:
+                bill_date = datetime.strptime(next_bill_date, "%Y-%m-%d").replace(tzinfo=VN_TZ)
+                days_left = (bill_date - datetime.now(VN_TZ)).days
+                if days_left == 1:
+                    alerts.append(
+                        f"📅 *{name}*\n"
+                        f"⏰ Ngày thanh toán hóa đơn: *{bill_date.strftime('%d/%m/%Y')}*\n"
+                        f"🔔 Còn *1 ngày* nữa đến hạn thanh toán!\n"
                     )
         except Exception as e:
             print(f"❌ Lỗi kiểm tra billing tài khoản {i}: {e}")
