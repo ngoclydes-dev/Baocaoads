@@ -86,10 +86,31 @@ def get_page_tags(page_id: str):
 
 
 if __name__ == "__main__":
-    for page in PANCAKE_PAGES[:2]:
-        convs = get_pancake_conversations(page["id"], limit=200)
-        spam_convs = [c for c in convs if SPAM_TAG_ID in c.get("tags", [])]
-        print(f"\n=== {page['name']} ===")
-        print("Tổng SPAM (không lọc ngày):", len(spam_convs))
-        for c in spam_convs[:5]:
-            print("  - inserted_at:", c.get("inserted_at"), "| updated_at:", c.get("updated_at"))
+    page_id = "108481465282735"  # Quang Trung Gò Vấp
+    url = f"https://pancake.vn/api/v1/pages/{page_id}/conversations"
+
+    modes_to_try = ["NONE", "SPAM", "ARCHIVE", "ARCHIVED", "TRASH", "DELETED"]
+
+    for mode in modes_to_try:
+        params = {
+            "access_token": PANCAKE_TOKEN,
+            "mode": mode,
+            "tags": "[17]",
+            "limit": 50,
+        }
+        resp = requests.get(url, params=params, timeout=30)
+        try:
+            data = resp.json()
+            convs = data.get("conversations", [])
+            has_17 = sum(1 for c in convs if 17 in c.get("tags", []))
+            print(f"mode={mode}: status={resp.status_code}, tổng={len(convs)}, có tag 17={has_17}")
+        except Exception as e:
+            print(f"mode={mode}: lỗi parse - {e}, raw: {resp.text[:200]}")
+
+    # Kiểm tra xem trong 200 conversation gần nhất có ai bị is_removed=True không
+    print("\n=== Kiểm tra is_removed ===")
+    params = {"access_token": PANCAKE_TOKEN, "limit": 200}
+    resp = requests.get(url, params=params, timeout=30)
+    convs = resp.json().get("conversations", [])
+    removed = [c for c in convs if c.get("is_removed")]
+    print("Số conversation is_removed=True:", len(removed))
