@@ -250,17 +250,6 @@ def check_spending_alert():
                         f"⚠️ *{name}*\n"
                         f"🔴 Số dư còn lại: {balance:,.0f} {currency}\n"
                     )
-                    # Kiểm tra ngày thanh toán
-            next_bill_date = info.get("next_bill_date")
-            if next_bill_date:
-                bill_date = datetime.strptime(next_bill_date, "%Y-%m-%d").replace(tzinfo=VN_TZ)
-                days_left = (bill_date - datetime.now(VN_TZ)).days
-                if days_left <= 30:
-                    alerts.append(
-                        f"📅 *{name}*\n"
-                        f"⏰ Ngày thanh toán hóa đơn: *{bill_date.strftime('%d/%m/%Y')}*\n"
-                        f"🔔 Còn *1 ngày* nữa đến hạn thanh toán!\n"
-                    )
         except Exception as e:
             print(f"❌ Lỗi kiểm tra billing tài khoản {i}: {e}")
 
