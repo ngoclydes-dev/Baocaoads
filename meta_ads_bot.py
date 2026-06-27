@@ -27,7 +27,12 @@ AD_ACCOUNTS = [
     os.getenv("AD_ACCOUNT_3"),
     os.getenv("AD_ACCOUNT_4"),
 ]
-
+BILL_DAYS = [
+    int(os.getenv("BILL_DAY_1", 0)),
+    int(os.getenv("BILL_DAY_2", 0)),
+    int(os.getenv("BILL_DAY_3", 0)),
+    int(os.getenv("BILL_DAY_4", 0)),
+]
 META_API_VERSION = "v21.0"
 META_BASE_URL    = f"https://graph.facebook.com/{META_API_VERSION}"
 VN_TZ            = timezone(timedelta(hours=7))
@@ -51,7 +56,7 @@ def get_account_billing(account_id: str) -> dict:
     AD_ACCOUNT_ID = account_id
     url = f"{META_BASE_URL}/{AD_ACCOUNT_ID}"
     params = {
-        "fields": "name,currency,spend_cap,amount_spent,balance,next_bill_date",
+        "fields": "name,currency,spend_cap,amount_spent,balance",
         "access_token": META_ACCESS_TOKEN,
     }
     resp = requests.get(url, params=params, timeout=30)
@@ -249,6 +254,17 @@ def check_spending_alert():
                     alerts.append(
                         f"⚠️ *{name}*\n"
                         f"🔴 Số dư còn lại: {balance:,.0f} {currency}\n"
+                    )
+            # Kiểm tra ngày thanh toán
+            bill_day = BILL_DAYS[i-1] if i-1 < len(BILL_DAYS) else 0
+            if bill_day > 0:
+                now       = datetime.now(VN_TZ)
+                tomorrow  = now + timedelta(days=1)
+                if tomorrow.day == bill_day:
+                    alerts.append(
+                        f"📅 *{name}*\n"
+                        f"⏰ Ngày mai ({tomorrow.strftime('%d/%m/%Y')}) là ngày thanh toán hóa đơn!\n"
+                        f"💳 Vui lòng kiểm tra số dư tài khoản!\n"
                     )
         except Exception as e:
             print(f"❌ Lỗi kiểm tra billing tài khoản {i}: {e}")
