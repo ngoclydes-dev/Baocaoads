@@ -88,23 +88,29 @@ def get_page_tags(page_id: str):
 
 
 if __name__ == "__main__":
-    import json
+    page_id = PANCAKE_PAGES[0]["id"]
+    url = f"https://pancake.vn/api/v1/pages/{page_id}/conversations"
 
-    # 1. Kiểm tra danh sách tag thật của page
-    print("=== DANH SÁCH TAG ===")
-    try:
-        tags_data = get_page_tags(PANCAKE_PAGES[0]["id"])
-        print(json.dumps(tags_data, indent=2, ensure_ascii=False))
-    except Exception as e:
-        print("Lỗi lấy tags:", e)
-
-    # 2. Kiểm tra cấu trúc response để tìm cơ chế phân trang
-    print("\n=== CẤU TRÚC RESPONSE CONVERSATIONS ===")
-    url = f"https://pancake.vn/api/v1/pages/{PANCAKE_PAGES[0]['id']}/conversations"
-    params = {
-        "access_token": PANCAKE_TOKEN,
-        "limit": 100,
-    }
-    resp = requests.get(url, params=params, timeout=30)
+    # Test 1: gọi không tag, xem có field nào liên quan last_conversation/since không
+    resp = requests.get(url, params={"access_token": PANCAKE_TOKEN, "limit": 5}, timeout=30)
     data = resp.json()
-    print("Các key ở cấp cao nhất:", list(data.keys()))
+    print("=== TEST 1: full response keys ===")
+    print(list(data.keys()))
+
+    convs = data.get("conversations", [])
+    if convs:
+        print("\n=== TEST 2: 1 conversation đầy đủ field ===")
+        import json
+        print(json.dumps(convs[0], indent=2, ensure_ascii=False))
+
+        print("\n=== TEST 3: thử since_id với ID cuối cùng ===")
+        last_id = convs[-1].get("id")
+        resp2 = requests.get(url, params={
+            "access_token": PANCAKE_TOKEN,
+            "limit": 5,
+            "since_id": last_id,
+        }, timeout=30)
+        data2 = resp2.json()
+        convs2 = data2.get("conversations", [])
+        print("ID trang 1:", [c.get("id") for c in convs])
+        print("ID trang 2 (since_id):", [c.get("id") for c in convs2])
