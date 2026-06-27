@@ -86,31 +86,37 @@ def get_page_tags(page_id: str):
 
 
 if __name__ == "__main__":
-    page_id = "108481465282735"  # Quang Trung Gò Vấp
-    url = f"https://pancake.vn/api/v1/pages/{page_id}/conversations"
+    page_id = "108481465282735"
+    target_id_fragment = "27074539515530298"  # ID khách hàng bạn cung cấp
 
-    modes_to_try = ["NONE", "SPAM", "ARCHIVE", "ARCHIVED", "TRASH", "DELETED"]
+    convs = get_pancake_conversations(page_id, limit=200)
 
-    for mode in modes_to_try:
-        params = {
-            "access_token": PANCAKE_TOKEN,
-            "mode": mode,
-            "tags": "[17]",
-            "limit": 50,
-        }
-        resp = requests.get(url, params=params, timeout=30)
-        try:
-            data = resp.json()
-            convs = data.get("conversations", [])
-            has_17 = sum(1 for c in convs if 17 in c.get("tags", []))
-            print(f"mode={mode}: status={resp.status_code}, tổng={len(convs)}, có tag 17={has_17}")
-        except Exception as e:
-            print(f"mode={mode}: lỗi parse - {e}, raw: {resp.text[:200]}")
+    print("Tổng conversation lấy được:", len(convs))
 
-    # Kiểm tra xem trong 200 conversation gần nhất có ai bị is_removed=True không
-    print("\n=== Kiểm tra is_removed ===")
-    params = {"access_token": PANCAKE_TOKEN, "limit": 200}
-    resp = requests.get(url, params=params, timeout=30)
-    convs = resp.json().get("conversations", [])
-    removed = [c for c in convs if c.get("is_removed")]
-    print("Số conversation is_removed=True:", len(removed))
+    # 1. Liệt kê tất cả tag ID xuất hiện
+    all_tags = set()
+    for c in convs:
+        all_tags.update(c.get("tags", []))
+    print("Tất cả tag ID xuất hiện:", sorted(all_tags))
+    print("Tag 17 có xuất hiện không:", 17 in all_tags)
+
+    # 2. Tìm conversation có ID khớp với target
+    found = None
+    for c in convs:
+        conv_id = c.get("id", "")
+        from_id = c.get("from", {}).get("id", "")
+        psid = c.get("from_psid", "")
+        if target_id_fragment in conv_id or target_id_fragment == from_id or target_id_fragment == psid:
+            found = c
+            break
+
+    print("\n=== Tìm conversation theo ID khách hàng ===")
+    if found:
+        print("TÌM THẤY trong 200 conversation gần nhất!")
+        print("ID:", found.get("id"))
+        print("Tags:", found.get("tags"))
+        print("inserted_at:", found.get("inserted_at"))
+        print("updated_at:", found.get("updated_at"))
+    else:
+        print("KHÔNG tìm thấy trong 200 conversation gần nhất.")
+        print("→ Conversation SPAM này không nằm trong danh sách API
