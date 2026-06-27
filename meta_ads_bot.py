@@ -255,7 +255,7 @@ def check_spending_alert():
             if next_bill_date:
                 bill_date = datetime.strptime(next_bill_date, "%Y-%m-%d").replace(tzinfo=VN_TZ)
                 days_left = (bill_date - datetime.now(VN_TZ)).days
-                if days_left == 1:
+                if days_left <= 30:
                     alerts.append(
                         f"📅 *{name}*\n"
                         f"⏰ Ngày thanh toán hóa đơn: *{bill_date.strftime('%d/%m/%Y')}*\n"
