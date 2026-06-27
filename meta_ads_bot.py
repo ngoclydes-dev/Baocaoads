@@ -160,6 +160,7 @@ def get_pancake_spam_and_phones(page_id: str, date_str: str) -> dict:
 
     for conv in conversations:
         inserted = conv.get("inserted_at", "")[:10]
+        updated  = conv.get("updated_at", "")[:10]
         if inserted == yesterday:
             spam_count += 1
 
@@ -361,11 +362,6 @@ def daily_job():
             f"🚫 Tổng SPAM: {total_spam}\n"
             f"📞 Tổng SĐT mới: {len(total_phones)}\n"
         )
-
-        if total_phones:
-            pancake_report += "\n📋 Danh sách SĐT mới:\n"
-            for p in total_phones:
-                pancake_report += f"  - {p['name']}: {p['phone']}\n"
 
         report += pancake_report
         print("=== NỘI DUNG TIN NHẮN ===")
