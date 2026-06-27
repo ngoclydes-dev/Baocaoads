@@ -1,5 +1,19 @@
+import os
+import requests
+from datetime import datetime, timedelta, timezone
+
+PANCAKE_TOKEN = os.getenv("PANCAKE_TOKEN")
+SPAM_TAG_ID = 17
+VN_TZ = timezone(timedelta(hours=7))
+
+PANCAKE_PAGES = [
+    {"id": "103905658090177", "name": "Love + Rosa Skin Center"},
+    {"id": "108481465282735", "name": "Love + Rosa Quang Trung Gò Vấp"},
+    {"id": "105124961775914", "name": "Love + Rosa Chăm Sóc Da Mụn"},
+    {"id": "101059842189274", "name": "Love + Rosa Kỳ Đồng Quận 3"},
+]
+
 def get_pancake_conversations(page_id: str, tags: str = "[]", except_tags: str = "[]", limit: int = 100) -> list:
-    """Lấy toàn bộ conversation theo filter, có phân trang"""
     url = f"https://pancake.vn/api/v1/pages/{page_id}/conversations"
     all_conversations = []
     page_number = 1
@@ -23,12 +37,10 @@ def get_pancake_conversations(page_id: str, tags: str = "[]", except_tags: str =
 
         all_conversations.extend(conversations)
 
-        # Nếu trả về ít hơn limit => hết trang
         if len(conversations) < limit:
             break
         page_number += 1
 
-        # Chặn an toàn tránh loop vô hạn
         if page_number > 20:
             break
 
@@ -36,20 +48,12 @@ def get_pancake_conversations(page_id: str, tags: str = "[]", except_tags: str =
 
 
 def get_pancake_spam_and_phones(page_id: str, date_str: str) -> dict:
-    """
-    Đếm SPAM mới và SĐT mới trong ngày date_str (YYYY-MM-DD).
-    - SPAM: conversation có tag SPAM, tạo trong ngày date_str
-    - SĐT mới: lấy từ TẤT CẢ conversation (không lọc theo tag SPAM),
-      tạo trong ngày date_str, có số điện thoại
-    """
-    # --- Đếm SPAM: chỉ lấy conversation có tag SPAM ---
     spam_conversations = get_pancake_conversations(page_id, tags=f"[{SPAM_TAG_ID}]")
     spam_count = sum(
         1 for conv in spam_conversations
         if conv.get("inserted_at", "")[:10] == date_str
     )
 
-    # --- Đếm SĐT mới: lấy TẤT CẢ conversation, KHÔNG lọc theo SPAM ---
     all_conversations = get_pancake_conversations(page_id, tags="[]", except_tags="[]")
 
     seen_phones = set()
@@ -70,18 +74,7 @@ def get_pancake_spam_and_phones(page_id: str, date_str: str) -> dict:
                 })
 
     return {"spam": spam_count, "phones": phones}
-    
-PANCAKE_TOKEN = os.getenv("PANCAKE_TOKEN")
 
-PANCAKE_PAGES = [
-    {"id": "103905658090177", "name": "Love + Rosa Skin Center"},
-    {"id": "108481465282735", "name": "Love + Rosa Quang Trung Gò Vấp"},
-    {"id": "105124961775914", "name": "Love + Rosa Chăm Sóc Da Mụn"},
-    {"id": "101059842189274", "name": "Love + Rosa Kỳ Đồng Quận 3"},
-]
-
-SPAM_TAG_ID = 17
-VN_TZ            = timezone(timedelta(hours=7))
 
 if __name__ == "__main__":
     yesterday = (datetime.now(VN_TZ) - timedelta(days=1)).strftime("%Y-%m-%d")
