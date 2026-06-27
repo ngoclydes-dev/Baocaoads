@@ -48,21 +48,19 @@ def get_pancake_conversations(page_id: str, tags: str = "[]", except_tags: str =
 
 
 def get_pancake_spam_and_phones(page_id: str, date_str: str) -> dict:
-    spam_conversations = get_pancake_conversations(page_id, tags=f"[{SPAM_TAG_ID}]")
-    spam_count = sum(
-        1 for conv in spam_conversations
-        if conv.get("inserted_at", "")[:10] == date_str
-    )
+    conversations = get_pancake_conversations(page_id, limit=200)
 
-    all_conversations = get_pancake_conversations(page_id, tags="[]", except_tags="[]")
-
+    spam_count = 0
     seen_phones = set()
     phones = []
 
-    for conv in all_conversations:
-        inserted = conv.get("inserted_at", "")[:10]
-        if inserted != date_str:
+    for conv in conversations:
+        if conv.get("inserted_at", "")[:10] != date_str:
             continue
+
+        # Lọc SPAM thủ công bằng cách kiểm tra tag ID có trong list không
+        if SPAM_TAG_ID in conv.get("tags", []):
+            spam_count += 1
 
         for phone_info in conv.get("recent_phone_numbers", []):
             phone = phone_info.get("phone_number", "")
