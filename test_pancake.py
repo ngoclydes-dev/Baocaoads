@@ -88,21 +88,31 @@ if __name__ == "__main__":
     page_id = "108481465282735"
     url = f"https://pancake.vn/api/v1/pages/{page_id}/conversations"
 
-    # Trang 1
-    resp1 = requests.get(url, params={"access_token": PANCAKE_TOKEN, "limit": 10}, timeout=30)
+    base_params = {
+        "access_token": PANCAKE_TOKEN,
+        "unread_first": "true",
+        "mode": "NONE",
+        "tags": "[]",
+        "except_tags": "[]",
+    }
+
+    # Trang 1 - giống request gốc, không thêm limit
+    resp1 = requests.get(url, params=base_params, timeout=30)
     data1 = resp1.json()
     ids1 = [c.get("id") for c in data1.get("conversations", [])]
     cursor1 = data1.get("next_cursor")
-    print("Trang 1 - IDs:", ids1)
+    print("Tổng số trang 1:", len(ids1))
     print("Cursor nhận được:", cursor1)
 
-    # Trang 2 - dùng cursor
-    resp2 = requests.get(url, params={
-        "access_token": PANCAKE_TOKEN,
-        "limit": 10,
-        "cursor": cursor1,
-    }, timeout=30)
-    data2 = resp2.json()
-    ids2 = [c.get("id") for c in data2.get("conversations", [])]
-    print("Trang 2 - IDs:", ids2)
-    print("Trang 1 và 2 có giống nhau không:", ids1 == ids2)
+    if cursor1:
+        # Trang 2 - thêm cursor vào đúng bộ tham số gốc
+        params2 = dict(base_params)
+        params2["cursor"] = cursor1
+        resp2 = requests.get(url, params=params2, timeout=30)
+        data2 = resp2.json()
+        ids2 = [c.get("id") for c in data2.get("conversations", [])]
+        print("Tổng số trang 2:", len(ids2))
+        print("Trang 1 và 2 có giống nhau không:", ids1 == ids2)
+        print("Cursor trang 2:", data2.get("next_cursor"))
+    else:
+        print("Không có cursor -> có thể đây đã là toàn bộ dữ liệu hiện có.")
