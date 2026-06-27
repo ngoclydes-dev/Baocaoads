@@ -70,3 +70,21 @@ def get_pancake_spam_and_phones(page_id: str, date_str: str) -> dict:
                 })
 
     return {"spam": spam_count, "phones": phones}
+    
+PANCAKE_TOKEN = os.getenv("PANCAKE_TOKEN")
+
+PANCAKE_PAGES = [
+    {"id": "103905658090177", "name": "Love + Rosa Skin Center"},
+    {"id": "108481465282735", "name": "Love + Rosa Quang Trung Gò Vấp"},
+    {"id": "105124961775914", "name": "Love + Rosa Chăm Sóc Da Mụn"},
+    {"id": "101059842189274", "name": "Love + Rosa Kỳ Đồng Quận 3"},
+]
+
+SPAM_TAG_ID = 17
+VN_TZ            = timezone(timedelta(hours=7))
+
+if __name__ == "__main__":
+    yesterday = (datetime.now(VN_TZ) - timedelta(days=1)).strftime("%Y-%m-%d")
+    for page in PANCAKE_PAGES:
+        result = get_pancake_spam_and_phones(page["id"], yesterday)
+        print(page["name"], "→ SPAM:", result["spam"], "| SĐT:", len(result["phones"]))
