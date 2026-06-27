@@ -86,35 +86,23 @@ def get_page_tags(page_id: str):
 
 if __name__ == "__main__":
     page_id = "108481465282735"
-    target_id_fragment = "27074539515530298"
+    url = f"https://pancake.vn/api/v1/pages/{page_id}/conversations"
 
-    convs = get_pancake_conversations(page_id, limit=200)
+    # Trang 1
+    resp1 = requests.get(url, params={"access_token": PANCAKE_TOKEN, "limit": 10}, timeout=30)
+    data1 = resp1.json()
+    ids1 = [c.get("id") for c in data1.get("conversations", [])]
+    cursor1 = data1.get("next_cursor")
+    print("Trang 1 - IDs:", ids1)
+    print("Cursor nhận được:", cursor1)
 
-    print("Tong conversation lay duoc:", len(convs))
-
-    all_tags = set()
-    for c in convs:
-        all_tags.update(c.get("tags", []))
-    print("Tat ca tag ID xuat hien:", sorted(all_tags))
-    print("Tag 17 co xuat hien khong:", 17 in all_tags)
-
-    found = None
-    for c in convs:
-        conv_id = c.get("id", "")
-        from_id = c.get("from", {}).get("id", "")
-        psid = c.get("from_psid", "")
-        if target_id_fragment in conv_id or target_id_fragment == from_id or target_id_fragment == psid:
-            found = c
-            break
-
-    print("")
-    print("=== Tim conversation theo ID khach hang ===")
-    if found:
-        print("TIM THAY trong 200 conversation gan nhat!")
-        print("ID:", found.get("id"))
-        print("Tags:", found.get("tags"))
-        print("inserted_at:", found.get("inserted_at"))
-        print("updated_at:", found.get("updated_at"))
-    else:
-        print("KHONG tim thay trong 200 conversation gan nhat.")
-        print("Conversation SPAM nay khong nam trong danh sach API tra ve, du da lay 200 cai gan nhat.")
+    # Trang 2 - dùng cursor
+    resp2 = requests.get(url, params={
+        "access_token": PANCAKE_TOKEN,
+        "limit": 10,
+        "cursor": cursor1,
+    }, timeout=30)
+    data2 = resp2.json()
+    ids2 = [c.get("id") for c in data2.get("conversations", [])]
+    print("Trang 2 - IDs:", ids2)
+    print("Trang 1 và 2 có giống nhau không:", ids1 == ids2)
