@@ -134,7 +134,7 @@ def build_report(date_start: str, date_stop: str, period_label: str) -> str:
     display_stop  = datetime.strptime(date_stop,  "%Y-%m-%d").strftime("%d/%m/%Y")
 
     report = (
-        f"📊 <b>BÁO CÁO META ADS – {period_label.upper()}</b>\n"
+        f"📊 BÁO CÁO META ADS – {period_label.upper()}\n"
         f"📅 {display_start} – {display_stop}\n"
         f"🕐 Cập nhật lúc {now.strftime('%H:%M')}\n"
         f"{'═' * 32}\n\n"
@@ -156,7 +156,7 @@ def build_report(date_start: str, date_stop: str, period_label: str) -> str:
             total_buys  += s["purchases"]
 
             report += (
-                f"🏷️ <b>{s['name']}</b>\n"
+                f"🏷️ <b>{s['name']}\n"
                 f"💸 Chi tiêu: {s['spend']:,.0f} {s['currency']}\n"
                 f"💬 Tin nhắn mới: {s['messages']:,}\n"
                 f"💰 Giá/tin nhắn: {s['cost_per_msg']:,.0f} {s['currency']}\n"
@@ -168,7 +168,7 @@ def build_report(date_start: str, date_stop: str, period_label: str) -> str:
 
     avg_cost = (total_spend / total_msgs) if total_msgs > 0 else 0
     report += (
-        f"📌 <b>TỔNG CỘNG</b>\n"
+        f"📌 <b>TỔNG CỘNG\n"
         f"💸 Chi tiêu: {total_spend:,.0f} {currency}\n"
         f"💬 Tin nhắn mới: {total_msgs:,}\n"
         f"💰 Giá/tin nhắn: {avg_cost:,.0f} {currency}\n"
@@ -195,7 +195,6 @@ def send_telegram(message: str):
     payload = {
         "chat_id":    TELEGRAM_CHAT_ID,
         "text":       message,
-        "parse_mode": "HTML",
     }
     resp = requests.post(url, json=payload, timeout=30)
     resp.raise_for_status()
@@ -207,7 +206,6 @@ def send_telegram_with_buttons(message: str):
     payload = {
         "chat_id":    TELEGRAM_CHAT_ID,
         "text":       message,
-        "parse_mode": "HTML",
         "reply_markup": {
             "inline_keyboard": [[
                 {"text": "📅 7 ngày",      "callback_data": "period_7"},
