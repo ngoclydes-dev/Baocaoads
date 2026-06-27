@@ -260,7 +260,7 @@ def check_spending_alert():
             if bill_day > 0:
                 now      = datetime.now(VN_TZ)
                 tomorrow = now + timedelta(days=1)
-                if True:  # test tạm thời
+                if tomorrow.day == bill_day:
                     alerts.append(
                         f"📅 {name}\n"
                         f"⏰ Ngày mai ({tomorrow.strftime('%d/%m/%Y')}) là ngày thanh toán hóa đơn!\n"
