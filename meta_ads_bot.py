@@ -334,7 +334,7 @@ def daily_job():
     try:
         date_start, date_stop = get_dates(1)
         report = build_report(date_start, date_stop, "Hôm qua")
-         yesterday = (datetime.now(VN_TZ) - timedelta(days=1)).strftime("%Y-%m-%d")
+        yesterday = (datetime.now(VN_TZ) - timedelta(days=1)).strftime("%Y-%m-%d")
         pancake_report = "\n" + "=" * 32 + "\n"
         pancake_report += "📱 PANCAKE - SPAM & SĐT MỚI\n"
         pancake_report += "=" * 32 + "\n\n"
