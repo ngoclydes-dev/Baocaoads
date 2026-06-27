@@ -38,7 +38,7 @@ PANCAKE_PAGES = [
     {"id": "101059842189274", "name": "Love + Rosa Kỳ Đồng Quận 3"},
 ]
 
-SPAM_TAG_ID = 17
+SPAM_TAG_ID = 18
 
 BILL_DAYS = [
     int(os.getenv("BILL_DAY_1", 0) or 0),
@@ -137,25 +137,16 @@ def get_account_stats(account_id: str, date_start: str, date_stop: str) -> dict:
     
 # ─── PANCAKE API ────────────────────────────────────────────
 
-def get_pancake_conversations(page_id: str, tags: str = "[]", except_tags: str = "[]", limit: int = 100) -> list:
-    """Lấy toàn bộ conversation theo filter, có phân trang"""
+def get_pancake_conversations(page_id: str, limit: int = 500) -> list:
+    """Lấy conversation gần nhất. limit hoạt động đúng, không cần phân trang."""
     url = f"https://pancake.vn/api/v1/pages/{page_id}/conversations"
-    all_conversations = []
-    page_number = 1
-
-    while True:
-        params = {
-            "tags": tags,
-            "except_tags": except_tags,
-            "mode": "NONE",
-            "access_token": PANCAKE_TOKEN,
-            "limit": limit,
-            "page_number": page_number,
-        }
-        resp = requests.get(url, params=params, timeout=30)
-        resp.raise_for_status()
-        data = resp.json()
-        conversations = data.get("conversations", [])
+    params = {
+        "access_token": PANCAKE_TOKEN,
+        "limit": limit,
+    }
+    resp = requests.get(url, params=params, timeout=30)
+    resp.raise_for_status()
+    return resp.json().get("conversations", [])
 
         if not conversations:
             break
@@ -177,27 +168,20 @@ def get_pancake_conversations(page_id: str, tags: str = "[]", except_tags: str =
 def get_pancake_spam_and_phones(page_id: str, date_str: str) -> dict:
     """
     Đếm SPAM mới và SĐT mới trong ngày date_str (YYYY-MM-DD).
-    - SPAM: conversation có tag SPAM, tạo trong ngày date_str
-    - SĐT mới: lấy từ TẤT CẢ conversation (không lọc theo tag SPAM),
-      tạo trong ngày date_str, có số điện thoại
+    Lọc tag và ngày thủ công trong Python vì API không hỗ trợ filter server-side.
     """
-    # --- Đếm SPAM: chỉ lấy conversation có tag SPAM ---
-    spam_conversations = get_pancake_conversations(page_id, tags=f"[{SPAM_TAG_ID}]")
-    spam_count = sum(
-        1 for conv in spam_conversations
-        if conv.get("inserted_at", "")[:10] == date_str
-    )
+    conversations = get_pancake_conversations(page_id, limit=500)
 
-    # --- Đếm SĐT mới: lấy TẤT CẢ conversation, KHÔNG lọc theo SPAM ---
-    all_conversations = get_pancake_conversations(page_id, tags="[]", except_tags="[]")
-
+    spam_count = 0
     seen_phones = set()
     phones = []
 
-    for conv in all_conversations:
-        inserted = conv.get("inserted_at", "")[:10]
-        if inserted != date_str:
+    for conv in conversations:
+        if conv.get("inserted_at", "")[:10] != date_str:
             continue
+
+        if SPAM_TAG_ID in conv.get("tags", []):
+            spam_count += 1
 
         for phone_info in conv.get("recent_phone_numbers", []):
             phone = phone_info.get("phone_number", "")
