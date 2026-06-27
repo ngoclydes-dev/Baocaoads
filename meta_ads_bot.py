@@ -272,7 +272,7 @@ def check_spending_alert():
 
     if alerts:
         msg  = "🚨 CẢNH BÁO NGƯỠNG THANH TOÁN\n"
-        msg += "═" * 32 + "\n\n"
+        msg += "-" * 32 + "\n\n"
         msg += "\n".join(alerts)
         msg += "\n💳 Vui lòng nạp tiền để tránh gián đoạn quảng cáo!"
         send_telegram(msg)
