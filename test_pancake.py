@@ -76,19 +76,35 @@ def get_pancake_spam_and_phones(page_id: str, date_str: str) -> dict:
     return {"spam": spam_count, "phones": phones}
 
 
+# ... các hàm get_pancake_conversations, get_pancake_spam_and_phones giữ nguyên ở trên ...
+
+
+def get_page_tags(page_id: str):
+    url = f"https://pancake.vn/api/v1/pages/{page_id}/tags"
+    params = {"access_token": PANCAKE_TOKEN}
+    resp = requests.get(url, params=params, timeout=30)
+    resp.raise_for_status()
+    return resp.json()
+
+
 if __name__ == "__main__":
-    yesterday = (datetime.now(VN_TZ) - timedelta(days=1)).strftime("%Y-%m-%d")
+    import json
 
-    for page in PANCAKE_PAGES[:2]:  # chỉ test 2 page đầu cho nhanh
-        print(f"\n=== {page['name']} ===")
+    # 1. Kiểm tra danh sách tag thật của page
+    print("=== DANH SÁCH TAG ===")
+    try:
+        tags_data = get_page_tags(PANCAKE_PAGES[0]["id"])
+        print(json.dumps(tags_data, indent=2, ensure_ascii=False))
+    except Exception as e:
+        print("Lỗi lấy tags:", e)
 
-        spam_convs = get_pancake_conversations(page["id"], tags=f"[{SPAM_TAG_ID}]")
-        print("Tổng conversation trả về (tag SPAM):", len(spam_convs))
-
-        ids = [c.get("id") for c in spam_convs]
-        print("Số ID trùng lặp:", len(ids) - len(set(ids)))
-
-        if spam_convs:
-            sample = spam_convs[0]
-            print("Mẫu conversation - tags field:", sample.get("tags"))
-            print("Mẫu conversation - inserted_at:", sample.get("inserted_at"))
+    # 2. Kiểm tra cấu trúc response để tìm cơ chế phân trang
+    print("\n=== CẤU TRÚC RESPONSE CONVERSATIONS ===")
+    url = f"https://pancake.vn/api/v1/pages/{PANCAKE_PAGES[0]['id']}/conversations"
+    params = {
+        "access_token": PANCAKE_TOKEN,
+        "limit": 100,
+    }
+    resp = requests.get(url, params=params, timeout=30)
+    data = resp.json()
+    print("Các key ở cấp cao nhất:", list(data.keys()))
