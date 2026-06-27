@@ -136,7 +136,7 @@ def build_report(date_start: str, date_stop: str, period_label: str) -> str:
         f"📊 BÁO CÁO META ADS – {period_label.upper()}\n"
         f"📅 {display_start} – {display_stop}\n"
         f"🕐 Cập nhật lúc {now.strftime('%H:%M')}\n"
-        f"{'═' * 32}\n\n"
+        f"{'=' * 32}\n\n"
     )
 
     total_spend = 0.0
@@ -160,7 +160,7 @@ def build_report(date_start: str, date_stop: str, period_label: str) -> str:
                 f"💬 Tin nhắn mới: {s['messages']:,}\n"
                 f"💰 Giá/tin nhắn: {s['cost_per_msg']:,.0f} {s['currency']}\n"
                 f"🛒 Lượt mua: {s['purchases']:,}\n"
-                f"{'─' * 32}\n\n"
+                f"{'-' * 32}\n\n"
             )
         except Exception as e:
             report += f"❌ Tài khoản {i} lỗi: {e}\n\n"
