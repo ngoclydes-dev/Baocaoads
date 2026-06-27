@@ -19,6 +19,7 @@ load_dotenv()
 
 # ─── CONFIG ────────────────────────────────────────────────
 META_ACCESS_TOKEN  = os.getenv("META_ACCESS_TOKEN")
+PANCAKE_TOKEN = os.getenv("PANCAKE_TOKEN")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID   = os.getenv("TELEGRAM_CHAT_ID")
 REPORT_TIME        = os.getenv("REPORT_TIME", "07:30")
@@ -29,6 +30,16 @@ AD_ACCOUNTS = [
     os.getenv("AD_ACCOUNT_3"),
     os.getenv("AD_ACCOUNT_4"),
 ]
+
+PANCAKE_PAGES = [
+    {"id": "103905658090177", "name": "Love + Rosa Skin Center"},
+    {"id": "108481465282735", "name": "Love + Rosa Quang Trung Gò Vấp"},
+    {"id": "105124961775914", "name": "Love + Rosa Chăm Sóc Da Mụn"},
+    {"id": "101059842189274", "name": "Love + Rosa Kỳ Đồng Quận 3"},
+]
+
+SPAM_TAG_ID = 17
+
 BILL_DAYS = [
     int(os.getenv("BILL_DAY_1", 0) or 0),
     int(os.getenv("BILL_DAY_2", 0) or 0),
@@ -123,7 +134,45 @@ def get_account_stats(account_id: str, date_start: str, date_stop: str) -> dict:
         "cost_per_msg": cost_per_msg,
         "purchases":    purchases,
     }
+    
+# ─── PANCAKE API ────────────────────────────────────────────
 
+def get_pancake_spam_and_phones(page_id: str, date_str: str) -> dict:
+    """Lấy số thẻ SPAM và số điện thoại mới trong ngày"""
+    url = f"https://pancake.vn/api/v1/pages/{page_id}/conversations"
+    params = {
+        "tags": f"[{SPAM_TAG_ID}]",
+        "except_tags": "[]",
+        "mode": "NONE",
+        "access_token": PANCAKE_TOKEN,
+        "limit": 100,
+    }
+    resp = requests.get(url, params=params, timeout=30)
+    resp.raise_for_status()
+    data = resp.json()
+
+    conversations = data.get("conversations", [])
+    now = datetime.now(VN_TZ)
+    yesterday = (now - timedelta(days=1)).strftime("%Y-%m-%d")
+
+    spam_count = 0
+    phones = []
+
+    for conv in conversations:
+        inserted = conv.get("inserted_at", "")[:10]
+        if inserted == yesterday:
+            spam_count += 1
+
+        # Lấy số điện thoại mới trong ngày hôm qua
+        for phone_info in conv.get("recent_phone_numbers", []):
+            phone = phone_info.get("phone_number", "")
+            if phone and inserted == yesterday:
+                phones.append({
+                    "phone": phone,
+                    "name": conv.get("customers", [{}])[0].get("name", ""),
+                })
+
+    return {"spam": spam_count, "phones": phones}
 
 # ─── BUILD REPORT ───────────────────────────────────────────
 
