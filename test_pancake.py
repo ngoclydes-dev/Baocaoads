@@ -85,16 +85,7 @@ def get_page_tags(page_id: str):
     return resp.json()
 
 if __name__ == "__main__":
-    page_id = "108481465282735"
-    url = f"https://pancake.vn/api/v1/pages/{page_id}/conversations"
-
-    for test_limit in [10, 50, 100, 300, 500]:
-        resp = requests.get(url, params={
-            "access_token": PANCAKE_TOKEN,
-            "limit": test_limit,
-        }, timeout=30)
-        data = resp.json()
-        convs = data.get("conversations", [])
-        ids = [c.get("id") for c in convs]
-        unique = len(set(ids))
-        print(f"limit={test_limit}: trả về {len(convs)} conversation, {unique} unique")
+    yesterday = (datetime.now(VN_TZ) - timedelta(days=1)).strftime("%Y-%m-%d")
+    for page in PANCAKE_PAGES:
+        result = get_pancake_spam_and_phones(page["id"], yesterday)
+        print(page["name"], "→ SPAM:", result["spam"], "| SĐT:", len(result["phones"]))
