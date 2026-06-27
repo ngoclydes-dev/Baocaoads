@@ -3,6 +3,8 @@ Meta Ads → Telegram Daily Report Bot v2
 - Báo cáo hằng ngày tự động
 - Có dòng tổng cộng
 - Có nút bấm: 7 ngày, 14 ngày, trong tháng
+- Cảnh báo ngưỡng thanh toán
+- Cảnh báo ngày thanh toán hóa đơn
 """
 
 import os
@@ -33,6 +35,7 @@ BILL_DAYS = [
     int(os.getenv("BILL_DAY_3", 0) or 0),
     int(os.getenv("BILL_DAY_4", 0) or 0),
 ]
+
 META_API_VERSION = "v21.0"
 META_BASE_URL    = f"https://graph.facebook.com/{META_API_VERSION}"
 VN_TZ            = timezone(timedelta(hours=7))
@@ -49,7 +52,8 @@ def get_account_info():
     resp = requests.get(url, params=params, timeout=30)
     resp.raise_for_status()
     return resp.json()
-    
+
+
 def get_account_billing(account_id: str) -> dict:
     """Lấy thông tin hạn mức và số dư tài khoản"""
     global AD_ACCOUNT_ID
@@ -62,6 +66,7 @@ def get_account_billing(account_id: str) -> dict:
     resp = requests.get(url, params=params, timeout=30)
     resp.raise_for_status()
     return resp.json()
+
 
 def get_insights(date_start: str, date_stop: str):
     url = f"{META_BASE_URL}/{AD_ACCOUNT_ID}/insights"
@@ -112,12 +117,12 @@ def get_account_stats(account_id: str, date_start: str, date_stop: str) -> dict:
     purchases = extract_action(actions, "onsite_conversion.purchase")
 
     return {
-        "name":        account_info.get("name", account_id),
-        "currency":    currency,
-        "spend":       spend,
-        "messages":    messages,
+        "name":         account_info.get("name", account_id),
+        "currency":     currency,
+        "spend":        spend,
+        "messages":     messages,
         "cost_per_msg": cost_per_msg,
-        "purchases":   purchases,
+        "purchases":    purchases,
     }
 
 
@@ -129,7 +134,7 @@ def build_report(date_start: str, date_stop: str, period_label: str) -> str:
     display_stop  = datetime.strptime(date_stop,  "%Y-%m-%d").strftime("%d/%m/%Y")
 
     report = (
-        f"📊 *BÁO CÁO META ADS – {period_label.upper()}*\n"
+        f"📊 <b>BÁO CÁO META ADS – {period_label.upper()}</b>\n"
         f"📅 {display_start} – {display_stop}\n"
         f"🕐 Cập nhật lúc {now.strftime('%H:%M')}\n"
         f"{'═' * 32}\n\n"
@@ -151,7 +156,7 @@ def build_report(date_start: str, date_stop: str, period_label: str) -> str:
             total_buys  += s["purchases"]
 
             report += (
-                f"🏷️ *{s['name']}*\n"
+                f"🏷️ <b>{s['name']}</b>\n"
                 f"💸 Chi tiêu: {s['spend']:,.0f} {s['currency']}\n"
                 f"💬 Tin nhắn mới: {s['messages']:,}\n"
                 f"💰 Giá/tin nhắn: {s['cost_per_msg']:,.0f} {s['currency']}\n"
@@ -159,11 +164,11 @@ def build_report(date_start: str, date_stop: str, period_label: str) -> str:
                 f"{'─' * 32}\n\n"
             )
         except Exception as e:
-            report += f"❌ Tài khoản {i} lỗi: `{e}`\n\n"
+            report += f"❌ Tài khoản {i} lỗi: {e}\n\n"
 
     avg_cost = (total_spend / total_msgs) if total_msgs > 0 else 0
     report += (
-        f"📌 *TỔNG CỘNG*\n"
+        f"📌 <b>TỔNG CỘNG</b>\n"
         f"💸 Chi tiêu: {total_spend:,.0f} {currency}\n"
         f"💬 Tin nhắn mới: {total_msgs:,}\n"
         f"💰 Giá/tin nhắn: {avg_cost:,.0f} {currency}\n"
@@ -190,7 +195,7 @@ def send_telegram(message: str):
     payload = {
         "chat_id":    TELEGRAM_CHAT_ID,
         "text":       message,
-        "parse_mode": "Markdown",
+        "parse_mode": "HTML",
     }
     resp = requests.post(url, json=payload, timeout=30)
     resp.raise_for_status()
@@ -202,12 +207,12 @@ def send_telegram_with_buttons(message: str):
     payload = {
         "chat_id":    TELEGRAM_CHAT_ID,
         "text":       message,
-        "parse_mode": "Markdown",
+        "parse_mode": "HTML",
         "reply_markup": {
             "inline_keyboard": [[
-                {"text": "📅 7 ngày",       "callback_data": "period_7"},
-                {"text": "📅 14 ngày",      "callback_data": "period_14"},
-                {"text": "📅 Trong tháng",  "callback_data": "period_month"},
+                {"text": "📅 7 ngày",      "callback_data": "period_7"},
+                {"text": "📅 14 ngày",     "callback_data": "period_14"},
+                {"text": "📅 Trong tháng", "callback_data": "period_month"},
             ]]
         }
     }
@@ -244,7 +249,7 @@ def check_spending_alert():
                 percent   = (amount_spent / spend_cap) * 100
                 if remaining <= ALERT_THRESHOLD:
                     alerts.append(
-                        f"⚠️ *{name}*\n"
+                        f"⚠️ <b>{name}</b>\n"
                         f"💸 Đã chi: {amount_spent:,.0f} / {spend_cap:,.0f} {currency}\n"
                         f"📊 Đã dùng: {percent:.1f}%\n"
                         f"🔴 Còn lại: {remaining:,.0f} {currency}\n"
@@ -252,17 +257,18 @@ def check_spending_alert():
             elif balance > 0:
                 if balance <= ALERT_THRESHOLD:
                     alerts.append(
-                        f"⚠️ *{name}*\n"
+                        f"⚠️ <b>{name}</b>\n"
                         f"🔴 Số dư còn lại: {balance:,.0f} {currency}\n"
                     )
+
             # Kiểm tra ngày thanh toán
             bill_day = BILL_DAYS[i-1] if i-1 < len(BILL_DAYS) else 0
             if bill_day > 0:
-                now       = datetime.now(VN_TZ)
-                tomorrow  = now + timedelta(days=1)
+                now      = datetime.now(VN_TZ)
+                tomorrow = now + timedelta(days=1)
                 if tomorrow.day == bill_day:
                     alerts.append(
-                        f"📅 *{name}*\n"
+                        f"📅 <b>{name}</b>\n"
                         f"⏰ Ngày mai ({tomorrow.strftime('%d/%m/%Y')}) là ngày thanh toán hóa đơn!\n"
                         f"💳 Vui lòng kiểm tra số dư tài khoản!\n"
                     )
@@ -270,7 +276,7 @@ def check_spending_alert():
             print(f"❌ Lỗi kiểm tra billing tài khoản {i}: {e}")
 
     if alerts:
-        msg  = "🚨 *CẢNH BÁO NGƯỠNG THANH TOÁN*\n"
+        msg  = "🚨 <b>CẢNH BÁO NGƯỠNG THANH TOÁN</b>\n"
         msg += "═" * 32 + "\n\n"
         msg += "\n".join(alerts)
         msg += "\n💳 Vui lòng nạp tiền để tránh gián đoạn quảng cáo!"
@@ -278,7 +284,8 @@ def check_spending_alert():
         print("✅ Đã gửi cảnh báo ngưỡng thanh toán!")
     else:
         print("✅ Tất cả tài khoản còn trong ngưỡng an toàn.")
-        
+
+
 def daily_job():
     print(f"[{datetime.now(VN_TZ).strftime('%H:%M:%S')}] Đang lấy dữ liệu Meta Ads...")
     try:
@@ -289,7 +296,7 @@ def daily_job():
         print("✅ Đã gửi báo cáo lên Telegram.")
     except Exception as e:
         print(f"❌ Lỗi: {e}")
-        send_telegram(f"⚠️ *Meta Ads Bot lỗi*\n`{e}`")
+        send_telegram(f"⚠️ <b>Meta Ads Bot lỗi</b>\n<code>{e}</code>")
 
 
 # ─── LẮNG NGHE NÚT BẤM ─────────────────────────────────────
@@ -359,5 +366,4 @@ if __name__ == "__main__":
         send_telegram(report)
 
     else:
-        # Mặc định: báo cáo hằng ngày
         daily_job()
