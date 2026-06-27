@@ -28,10 +28,10 @@ AD_ACCOUNTS = [
     os.getenv("AD_ACCOUNT_4"),
 ]
 BILL_DAYS = [
-    int(os.getenv("BILL_DAY_1", 0)),
-    int(os.getenv("BILL_DAY_2", 0)),
-    int(os.getenv("BILL_DAY_3", 0)),
-    int(os.getenv("BILL_DAY_4", 0)),
+    int(os.getenv("BILL_DAY_1", 0) or 0),
+    int(os.getenv("BILL_DAY_2", 0) or 0),
+    int(os.getenv("BILL_DAY_3", 0) or 0),
+    int(os.getenv("BILL_DAY_4", 0) or 0),
 ]
 META_API_VERSION = "v21.0"
 META_BASE_URL    = f"https://graph.facebook.com/{META_API_VERSION}"
