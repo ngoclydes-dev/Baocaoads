@@ -334,6 +334,40 @@ def daily_job():
     try:
         date_start, date_stop = get_dates(1)
         report = build_report(date_start, date_stop, "Hôm qua")
+         yesterday = (datetime.now(VN_TZ) - timedelta(days=1)).strftime("%Y-%m-%d")
+        pancake_report = "\n" + "=" * 32 + "\n"
+        pancake_report += "📱 PANCAKE - SPAM & SĐT MỚI\n"
+        pancake_report += "=" * 32 + "\n\n"
+
+        total_spam  = 0
+        total_phones = []
+
+        for page in PANCAKE_PAGES:
+            try:
+                result = get_pancake_spam_and_phones(page["id"], yesterday)
+                total_spam   += result["spam"]
+                total_phones += result["phones"]
+                pancake_report += (
+                    f"🏷️ {page['name']}\n"
+                    f"🚫 Thẻ SPAM mới: {result['spam']}\n"
+                    f"📞 SĐT mới: {len(result['phones'])}\n"
+                    f"{'-' * 32}\n\n"
+                )
+            except Exception as e:
+                pancake_report += f"❌ {page['name']} lỗi: {e}\n\n"
+
+        pancake_report += (
+            f"📌 TỔNG PANCAKE\n"
+            f"🚫 Tổng SPAM: {total_spam}\n"
+            f"📞 Tổng SĐT mới: {len(total_phones)}\n"
+        )
+
+        if total_phones:
+            pancake_report += "\n📋 Danh sách SĐT mới:\n"
+            for p in total_phones:
+                pancake_report += f"  - {p['name']}: {p['phone']}\n"
+
+        report += pancake_report
         print("=== NỘI DUNG TIN NHẮN ===")
         print(repr(report)) 
         send_telegram_with_buttons(report)
