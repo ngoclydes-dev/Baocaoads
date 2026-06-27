@@ -86,7 +86,10 @@ def get_page_tags(page_id: str):
 
 
 if __name__ == "__main__":
-    yesterday = (datetime.now(VN_TZ) - timedelta(days=1)).strftime("%Y-%m-%d")
-    for page in PANCAKE_PAGES:
-        result = get_pancake_spam_and_phones(page["id"], yesterday)
-        print(page["name"], "→ SPAM:", result["spam"], "| SĐT:", len(result["phones"]))
+    for page in PANCAKE_PAGES[:2]:
+        convs = get_pancake_conversations(page["id"], limit=200)
+        spam_convs = [c for c in convs if SPAM_TAG_ID in c.get("tags", [])]
+        print(f"\n=== {page['name']} ===")
+        print("Tổng SPAM (không lọc ngày):", len(spam_convs))
+        for c in spam_convs[:5]:
+            print("  - inserted_at:", c.get("inserted_at"), "| updated_at:", c.get("updated_at"))
