@@ -25,6 +25,7 @@ jobs:
       - name: Run bot
         env:
           META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+          PANCAKE_TOKEN: ${{ secrets.PANCAKE_TOKEN }}
           AD_ACCOUNT_1: ${{ secrets.AD_ACCOUNT_1 }}
           AD_ACCOUNT_2: ${{ secrets.AD_ACCOUNT_2 }}
           AD_ACCOUNT_3: ${{ secrets.AD_ACCOUNT_3 }}
