@@ -86,29 +86,33 @@ def get_page_tags(page_id: str):
 
 
 if __name__ == "__main__":
-    page_id = PANCAKE_PAGES[0]["id"]
+    page_id = "108481465282735"  # Quang Trung Gò Vấp - đúng page trong network request bạn chụp
     url = f"https://pancake.vn/api/v1/pages/{page_id}/conversations"
 
-    # Test 1: gọi không tag, xem có field nào liên quan last_conversation/since không
-    resp = requests.get(url, params={"access_token": PANCAKE_TOKEN, "limit": 5}, timeout=30)
+    # Gọi giống y hệt request thật trên browser
+    params = {
+        "unread_first": "true",
+        "mode": "NONE",
+        "tags": "[17]",
+        "except_tags": "[]",
+        "access_token": PANCAKE_TOKEN,
+        "limit": 50,
+    }
+    resp = requests.get(url, params=params, timeout=30)
+    print("Status code:", resp.status_code)
+    print("Request URL thực tế:", resp.url)
+
     data = resp.json()
-    print("=== TEST 1: full response keys ===")
-    print(list(data.keys()))
-
     convs = data.get("conversations", [])
-    if convs:
-        print("\n=== TEST 2: 1 conversation đầy đủ field ===")
-        import json
-        print(json.dumps(convs[0], indent=2, ensure_ascii=False))
+    print("Tổng conversation trả về:", len(convs))
 
-        print("\n=== TEST 3: thử since_id với ID cuối cùng ===")
-        last_id = convs[-1].get("id")
-        resp2 = requests.get(url, params={
-            "access_token": PANCAKE_TOKEN,
-            "limit": 5,
-            "since_id": last_id,
-        }, timeout=30)
-        data2 = resp2.json()
-        convs2 = data2.get("conversations", [])
-        print("ID trang 1:", [c.get("id") for c in convs])
-        print("ID trang 2 (since_id):", [c.get("id") for c in convs2])
+    # Kiểm tra từng conversation có thật chứa tag 17 không
+    has_17 = [c.get("id") for c in convs if 17 in c.get("tags", [])]
+    no_17 = [c.get("id") for c in convs if 17 not in c.get("tags", [])]
+    print("Số conversation CÓ tag 17:", len(has_17))
+    print("Số conversation KHÔNG có tag 17:", len(no_17))
+
+    if no_17:
+        # In thử 1 mẫu không có tag 17 để xem nó thật ra có tag gì
+        sample = next(c for c in convs if 17 not in c.get("tags", []))
+        print("Mẫu KHÔNG có tag 17 - tags thật:", sample.get("tags"))
