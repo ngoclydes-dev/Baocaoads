@@ -160,14 +160,14 @@ def get_pancake_spam_and_phones(page_id: str, date_str: str) -> dict:
 
     for conv in conversations:
         inserted = conv.get("inserted_at", "")[:10]
-        updated  = conv.get("updated_at", "")[:10]
+            # Đếm SPAM: conversation được TẠO hôm qua
         if inserted == yesterday:
             spam_count += 1
 
         # Lấy số điện thoại mới trong ngày hôm qua
         for phone_info in conv.get("recent_phone_numbers", []):
             phone = phone_info.get("phone_number", "")
-            if phone and inserted == yesterday:
+            if phone:
                 phones.append({
                     "phone": phone,
                     "name": conv.get("customers", [{}])[0].get("name", ""),
