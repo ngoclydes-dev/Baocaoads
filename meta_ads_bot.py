@@ -148,7 +148,7 @@ def get_pancake_conversations(page_id: str, limit: int = 500) -> list:
     resp.raise_for_status()
     return resp.json().get("conversations", [])
 
-        if not conversations:
+    if not conversations:
             break
 
         all_conversations.extend(conversations)
