@@ -20,4 +20,7 @@ jobs:
         env:
           META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
           AD_ACCOUNT_1: ${{ secrets.AD_ACCOUNT_1 }}
+          AD_ACCOUNT_2: ${{ secrets.AD_ACCOUNT_2 }}
+          AD_ACCOUNT_3: ${{ secrets.AD_ACCOUNT_3 }}
+          AD_ACCOUNT_4: ${{ secrets.AD_ACCOUNT_4 }}
         run: python test_billing.py
