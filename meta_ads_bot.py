@@ -38,8 +38,6 @@ PANCAKE_PAGES = [
     {"id": "101059842189274", "name": "Love + Rosa Kỳ Đồng Quận 3"},
 ]
 
-SPAM_TAG_ID = 18
-
 BILL_DAYS = [
     int(os.getenv("BILL_DAY_1", 0) or 0),
     int(os.getenv("BILL_DAY_2", 0) or 0),
@@ -134,7 +132,7 @@ def get_account_stats(account_id: str, date_start: str, date_stop: str) -> dict:
         "cost_per_msg": cost_per_msg,
         "purchases":    purchases,
     }
-    
+
 # ─── PANCAKE API ────────────────────────────────────────────
 
 def get_pancake_conversations(page_id: str, limit: int = 500) -> list:
@@ -148,40 +146,20 @@ def get_pancake_conversations(page_id: str, limit: int = 500) -> list:
     resp.raise_for_status()
     return resp.json().get("conversations", [])
 
-    if not conversations:
-            break
 
-        all_conversations.extend(conversations)
-
-        # Nếu trả về ít hơn limit => hết trang
-        if len(conversations) < limit:
-            break
-        page_number += 1
-
-        # Chặn an toàn tránh loop vô hạn
-        if page_number > 20:
-            break
-
-    return all_conversations
-
-
-def get_pancake_spam_and_phones(page_id: str, date_str: str) -> dict:
+def get_pancake_new_phones(page_id: str, date_str: str) -> list:
     """
-    Đếm SPAM mới và SĐT mới trong ngày date_str (YYYY-MM-DD).
-    Lọc tag và ngày thủ công trong Python vì API không hỗ trợ filter server-side.
+    Lấy danh sách SĐT mới phát sinh trong ngày date_str (YYYY-MM-DD).
+    Lọc ngày và khử trùng SĐT thủ công trong Python.
     """
     conversations = get_pancake_conversations(page_id, limit=500)
 
-    spam_count = 0
     seen_phones = set()
     phones = []
 
     for conv in conversations:
         if conv.get("inserted_at", "")[:10] != date_str:
             continue
-
-        if SPAM_TAG_ID in conv.get("tags", []):
-            spam_count += 1
 
         for phone_info in conv.get("recent_phone_numbers", []):
             phone = phone_info.get("phone_number", "")
@@ -192,7 +170,7 @@ def get_pancake_spam_and_phones(page_id: str, date_str: str) -> dict:
                     "name": conv.get("customers", [{}])[0].get("name", ""),
                 })
 
-    return {"spam": spam_count, "phones": phones}
+    return phones
 
 # ─── BUILD REPORT ───────────────────────────────────────────
 
@@ -266,7 +244,7 @@ def send_telegram(message: str):
     resp = requests.post(url, json=payload, timeout=30)
     resp.raise_for_status()
     return resp.json()
-    
+
 def send_telegram_with_buttons(message: str):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {
@@ -356,21 +334,18 @@ def daily_job():
         report = build_report(date_start, date_stop, "Hôm qua")
         yesterday = (datetime.now(VN_TZ) - timedelta(days=1)).strftime("%Y-%m-%d")
         pancake_report = "\n" + "=" * 32 + "\n"
-        pancake_report += "📱 PANCAKE - SPAM & SĐT MỚI\n"
+        pancake_report += "📱 PANCAKE - SĐT MỚI\n"
         pancake_report += "=" * 32 + "\n\n"
 
-        total_spam  = 0
         total_phones = []
 
         for page in PANCAKE_PAGES:
             try:
-                result = get_pancake_spam_and_phones(page["id"], yesterday)
-                total_spam   += result["spam"]
-                total_phones += result["phones"]
+                phones = get_pancake_new_phones(page["id"], yesterday)
+                total_phones += phones
                 pancake_report += (
                     f"🏷️ {page['name']}\n"
-                    f"🚫 Thẻ SPAM mới: {result['spam']}\n"
-                    f"📞 SĐT mới: {len(result['phones'])}\n"
+                    f"📞 SĐT mới: {len(phones)}\n"
                     f"{'-' * 32}\n\n"
                 )
             except Exception as e:
@@ -378,13 +353,12 @@ def daily_job():
 
         pancake_report += (
             f"📌 TỔNG PANCAKE\n"
-            f"🚫 Tổng SPAM: {total_spam}\n"
             f"📞 Tổng SĐT mới: {len(total_phones)}\n"
         )
 
         report += pancake_report
         print("=== NỘI DUNG TIN NHẮN ===")
-        print(repr(report)) 
+        print(repr(report))
         send_telegram_with_buttons(report)
         check_spending_alert()
         print("✅ Đã gửi báo cáo lên Telegram.")
