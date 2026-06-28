@@ -3,11 +3,12 @@ Meta Ads → Telegram Daily Report Bot v2
 - Báo cáo hằng ngày tự động
 - Có dòng tổng cộng
 - Có nút bấm: 7 ngày, 14 ngày, trong tháng
-- Cảnh báo ngưỡng thanh toán
-- Cảnh báo ngày thanh toán hóa đơn
+- Cảnh báo sắp đạt ngưỡng thanh toán (còn ≤ 1.000.000đ)
+- Cảnh báo trước 1 ngày đến ngày lập hóa đơn
 """
 
 import os
+import re
 import requests
 import schedule
 import time
@@ -31,6 +32,18 @@ AD_ACCOUNTS = [
     os.getenv("AD_ACCOUNT_4"),
 ]
 
+# Ngưỡng thanh toán thật của từng tài khoản (lấy từ Meta Ads Manager → Billing settings)
+# Thứ tự tương ứng với AD_ACCOUNTS ở trên
+ACCOUNT_THRESHOLDS = [
+    53_015_250,   # Tài khoản 1650
+    20_000_000,   # Tài khoản 3742
+    31_667_350,   # Tài khoản 5186
+    0,            # Tài khoản 4 - chưa có ngưỡng, để 0 sẽ bỏ qua check này
+]
+
+# Báo trước khi còn bao nhiêu tiền nữa thì đạt ngưỡng
+THRESHOLD_ALERT_AMOUNT = 1_000_000
+
 PANCAKE_PAGES = [
     {"id": "103905658090177", "name": "Love + Rosa Skin Center"},
     {"id": "108481465282735", "name": "Love + Rosa Quang Trung Gò Vấp"},
@@ -50,6 +63,14 @@ META_BASE_URL    = f"https://graph.facebook.com/{META_API_VERSION}"
 VN_TZ            = timezone(timedelta(hours=7))
 AD_ACCOUNT_ID    = None
 
+
+def get_short_name(full_name: str, fallback: str = "") -> str:
+    """Tách 'TK 1650' từ tên dạng 'Ad Account 1650 - CÔNG TY TNHH...'"""
+    match = re.search(r"Account\s+(\d+)", full_name or "")
+    if match:
+        return f"TK {match.group(1)}"
+    return full_name or fallback
+
 # ─── META ADS API ───────────────────────────────────────────
 
 def get_account_info():
@@ -68,7 +89,7 @@ def get_account_billing(account_id: str) -> dict:
     AD_ACCOUNT_ID = account_id
     url = f"{META_BASE_URL}/{AD_ACCOUNT_ID}"
     params = {
-        "fields": "name,currency,spend_cap,amount_spent,balance",
+        "fields": "name,currency,balance",
         "access_token": META_ACCESS_TOKEN,
     }
     resp = requests.get(url, params=params, timeout=30)
@@ -304,7 +325,6 @@ def answer_callback(callback_query_id: str):
 
 
 # ─── JOB ────────────────────────────────────────────────────
-ALERT_THRESHOLD = 1_000_000
 
 def check_spending_alert():
     alerts = []
@@ -313,53 +333,39 @@ def check_spending_alert():
         if not account_id:
             continue
         try:
-            info         = get_account_billing(account_id)
-            name         = info.get("name", f"Tài khoản {i}")
-            currency     = info.get("currency", "VND")
-            spend_cap    = float(info.get("spend_cap", 0))
-            amount_spent = float(info.get("amount_spent", 0))
-            balance      = float(info.get("balance", 0))
+            info     = get_account_billing(account_id)
+            name     = get_short_name(info.get("name", ""), fallback=f"Tài khoản {i}")
+            currency = info.get("currency", "VND")
+            balance  = float(info.get("balance", 0))
 
-            if spend_cap > 0:
-                remaining = spend_cap - amount_spent
-                percent   = (amount_spent / spend_cap) * 100
-                if remaining <= ALERT_THRESHOLD:
-                    alerts.append(
-                        f"⚠️ {name}\n"
-                        f"💸 Đã chi: {amount_spent:,.0f} / {spend_cap:,.0f} {currency}\n"
-                        f"📊 Đã dùng: {percent:.1f}%\n"
-                        f"🔴 Còn lại: {remaining:,.0f} {currency}\n"
-                    )
-            elif balance > 0:
-                if balance <= ALERT_THRESHOLD:
-                    alerts.append(
-                        f"⚠️ {name}\n"
-                        f"🔴 Số dư còn lại: {balance:,.0f} {currency}\n"
-                    )
+            threshold = ACCOUNT_THRESHOLDS[i-1] if i-1 < len(ACCOUNT_THRESHOLDS) else 0
 
-            # Kiểm tra ngày thanh toán
+            if threshold > 0:
+                remaining = threshold - balance
+                if remaining <= THRESHOLD_ALERT_AMOUNT:
+                    if remaining <= 0:
+                        alerts.append(f"🔴 {name} ĐÃ ĐẠT/VƯỢT ngưỡng thanh toán! Vui lòng kiểm tra thẻ.")
+                    else:
+                        alerts.append(f"⚠️ {name} còn {remaining:,.0f}đ đến ngưỡng thanh toán.")
+
+            # Cảnh báo trước 1 ngày đến ngày lập hóa đơn cố định
             bill_day = BILL_DAYS[i-1] if i-1 < len(BILL_DAYS) else 0
             if bill_day > 0:
                 now      = datetime.now(VN_TZ)
                 tomorrow = now + timedelta(days=1)
                 if tomorrow.day == bill_day:
-                    alerts.append(
-                        f"📅 {name}\n"
-                        f"⏰ Ngày mai ({tomorrow.strftime('%d/%m/%Y')}) là ngày thanh toán hóa đơn!\n"
-                        f"💳 Vui lòng kiểm tra số dư tài khoản!\n"
-                    )
+                    alerts.append(f"📅 {name} còn 1 ngày nữa đến ngày lập hóa đơn, vui lòng nạp tiền/kiểm tra thẻ.")
         except Exception as e:
             print(f"❌ Lỗi kiểm tra billing tài khoản {i}: {e}")
 
     if alerts:
-        msg  = "🚨 CẢNH BÁO NGƯỠNG THANH TOÁN\n"
-        msg += "-" * 32 + "\n\n"
+        msg  = "🚨 CẢNH BÁO THANH TOÁN\n"
+        msg += "-" * 32 + "\n"
         msg += "\n".join(alerts)
-        msg += "\n💳 Vui lòng nạp tiền để tránh gián đoạn quảng cáo!"
         send_telegram(msg)
-        print("✅ Đã gửi cảnh báo ngưỡng thanh toán!")
+        print("✅ Đã gửi cảnh báo!")
     else:
-        print("✅ Tất cả tài khoản còn trong ngưỡng an toàn.")
+        print("✅ Tất cả tài khoản còn an toàn.")
 
 
 def daily_job():
