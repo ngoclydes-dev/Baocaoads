@@ -147,9 +147,9 @@ def get_pancake_conversations(page_id: str, limit: int = 500) -> list:
     return resp.json().get("conversations", [])
 
 
-def get_pancake_new_phones(page_id: str, date_str: str) -> list:
+def get_pancake_new_phones(page_id: str, date_start: str, date_stop: str) -> list:
     """
-    Lấy danh sách SĐT mới phát sinh trong ngày date_str (YYYY-MM-DD).
+    Lấy danh sách SĐT mới phát sinh trong khoảng [date_start, date_stop] (YYYY-MM-DD, bao gồm cả 2 đầu).
     Lọc ngày và khử trùng SĐT thủ công trong Python.
     """
     conversations = get_pancake_conversations(page_id, limit=500)
@@ -158,7 +158,8 @@ def get_pancake_new_phones(page_id: str, date_str: str) -> list:
     phones = []
 
     for conv in conversations:
-        if conv.get("inserted_at", "")[:10] != date_str:
+        inserted = conv.get("inserted_at", "")[:10]
+        if not inserted or inserted < date_start or inserted > date_stop:
             continue
 
         for phone_info in conv.get("recent_phone_numbers", []):
@@ -172,55 +173,89 @@ def get_pancake_new_phones(page_id: str, date_str: str) -> list:
 
     return phones
 
+
+def get_pancake_pages_data(date_start: str, date_stop: str) -> list:
+    """Trả về list (tên_page, số_sđt_mới) cho toàn bộ PANCAKE_PAGES trong khoảng ngày."""
+    pancake_pages_data = []
+    for page in PANCAKE_PAGES:
+        try:
+            phones = get_pancake_new_phones(page["id"], date_start, date_stop)
+            pancake_pages_data.append((page["name"], len(phones)))
+        except Exception as e:
+            pancake_pages_data.append((page["name"], 0))
+            print(f"❌ Lỗi Pancake {page['name']}: {e}")
+    return pancake_pages_data
+
 # ─── BUILD REPORT ───────────────────────────────────────────
 
-def build_report(date_start: str, date_stop: str, period_label: str) -> str:
-    now           = datetime.now(VN_TZ)
-    display_start = datetime.strptime(date_start, "%Y-%m-%d").strftime("%d/%m")
-    display_stop  = datetime.strptime(date_stop,  "%Y-%m-%d").strftime("%d/%m/%Y")
+def build_report(date_start: str, date_stop: str, period_label: str, pancake_pages_data=None) -> str:
+    """
+    pancake_pages_data: list các tuple (tên_page, số_sđt_mới), hoặc None nếu không cần phần Pancake.
+    """
+    now = datetime.now(VN_TZ)
 
-    report = (
-        f"📊 BÁO CÁO META ADS – {period_label.upper()}\n"
-        f"📅 {display_start} – {display_stop}\n"
-        f"🕐 Cập nhật lúc {now.strftime('%H:%M')}\n"
-        f"{'=' * 32}\n\n"
-    )
+    if date_start == date_stop:
+        date_display = datetime.strptime(date_stop, "%Y-%m-%d").strftime("%d/%m/%Y")
+        date_line = f"📅 Ngày {date_display}"
+    else:
+        display_start = datetime.strptime(date_start, "%Y-%m-%d").strftime("%d/%m")
+        display_stop  = datetime.strptime(date_stop,  "%Y-%m-%d").strftime("%d/%m/%Y")
+        date_line = f"📅 {display_start} – {display_stop}"
+
+    lines = [
+        f"📊 BÁO CÁO META ADS – {period_label.upper()}",
+        date_line,
+        f"🕐 Cập nhật lúc {now.strftime('%H:%M')}",
+        "=" * 32,
+    ]
 
     total_spend = 0.0
     total_msgs  = 0
     total_buys  = 0
     currency    = "VND"
 
+    account_count = 0
     for i, account_id in enumerate(AD_ACCOUNTS, 1):
         if not account_id:
             continue
+        account_count += 1
+        if account_count > 1:
+            lines.append("-" * 32)
         try:
-            s        = get_account_stats(account_id, date_start, date_stop)
+            s = get_account_stats(account_id, date_start, date_stop)
             currency = s["currency"]
             total_spend += s["spend"]
             total_msgs  += s["messages"]
             total_buys  += s["purchases"]
-
-            report += (
-                f"🏷️ {s['name']}\n"
-                f"💸 Chi tiêu: {s['spend']:,.0f} {s['currency']}\n"
-                f"💬 Tin nhắn mới: {s['messages']:,}\n"
-                f"💰 Giá/tin nhắn: {s['cost_per_msg']:,.0f} {s['currency']}\n"
-                f"🛒 Lượt mua: {s['purchases']:,}\n"
-                f"{'-' * 32}\n\n"
-            )
+            lines.extend([
+                f"🏷️ {s['name']}",
+                f"💸 Chi tiêu: {s['spend']:,.0f} {s['currency']}",
+                f"💬 Tin nhắn mới: {s['messages']:,}",
+                f"💰 Giá/tin nhắn: {s['cost_per_msg']:,.0f} {s['currency']}",
+                f"🛒 Lượt mua: {s['purchases']:,}",
+            ])
         except Exception as e:
-            report += f"❌ Tài khoản {i} lỗi: {e}\n\n"
+            lines.append(f"❌ Tài khoản {i} lỗi: {e}")
 
+    total_phones = 0
+    if pancake_pages_data is not None:
+        lines.append("-" * 32)
+        lines.append("📱 PANCAKE - SĐT MỚI")
+        for page_name, count in pancake_pages_data:
+            total_phones += count
+            lines.append(f"🏷️ {page_name}: {count}")
+
+    lines.append("-" * 32)
     avg_cost = (total_spend / total_msgs) if total_msgs > 0 else 0
-    report += (
-        f"📌 TỔNG CỘNG\n"
-        f"💸 Chi tiêu: {total_spend:,.0f} {currency}\n"
-        f"💬 Tin nhắn mới: {total_msgs:,}\n"
-        f"💰 Giá/tin nhắn: {avg_cost:,.0f} {currency}\n"
-        f"🛒 Lượt mua: {total_buys:,}\n"
-    )
-    return report
+    lines.append("📌 TỔNG CỘNG")
+    lines.append(f"💸 Chi tiêu: {total_spend:,.0f} {currency}")
+    lines.append(f"💬 Tin nhắn mới: {total_msgs:,}")
+    lines.append(f"💰 Giá/tin nhắn: {avg_cost:,.0f} {currency}")
+    if pancake_pages_data is not None:
+        lines.append(f"📞 Tổng SĐT mới: {total_phones}")
+    lines.append(f"🛒 Lượt mua: {total_buys:,}")
+
+    return "\n".join(lines)
 
 
 def get_dates(days: int):
@@ -331,32 +366,9 @@ def daily_job():
     print(f"[{datetime.now(VN_TZ).strftime('%H:%M:%S')}] Đang lấy dữ liệu Meta Ads...")
     try:
         date_start, date_stop = get_dates(1)
-        report = build_report(date_start, date_stop, "Hôm qua")
-        yesterday = (datetime.now(VN_TZ) - timedelta(days=1)).strftime("%Y-%m-%d")
-        pancake_report = "\n" + "=" * 32 + "\n"
-        pancake_report += "📱 PANCAKE - SĐT MỚI\n"
-        pancake_report += "=" * 32 + "\n\n"
+        pancake_pages_data = get_pancake_pages_data(date_start, date_stop)
+        report = build_report(date_start, date_stop, "Hôm qua", pancake_pages_data=pancake_pages_data)
 
-        total_phones = []
-
-        for page in PANCAKE_PAGES:
-            try:
-                phones = get_pancake_new_phones(page["id"], yesterday)
-                total_phones += phones
-                pancake_report += (
-                    f"🏷️ {page['name']}\n"
-                    f"📞 SĐT mới: {len(phones)}\n"
-                    f"{'-' * 32}\n\n"
-                )
-            except Exception as e:
-                pancake_report += f"❌ {page['name']} lỗi: {e}\n\n"
-
-        pancake_report += (
-            f"📌 TỔNG PANCAKE\n"
-            f"📞 Tổng SĐT mới: {len(total_phones)}\n"
-        )
-
-        report += pancake_report
         print("=== NỘI DUNG TIN NHẮN ===")
         print(repr(report))
         send_telegram_with_buttons(report)
@@ -394,15 +406,18 @@ def listen_callbacks():
 
                 if data_val == "period_7":
                     date_start, date_stop = get_dates(7)
-                    report = build_report(date_start, date_stop, "7 ngày qua")
+                    period_label = "7 ngày qua"
                 elif data_val == "period_14":
                     date_start, date_stop = get_dates(14)
-                    report = build_report(date_start, date_stop, "14 ngày qua")
+                    period_label = "14 ngày qua"
                 elif data_val == "period_month":
                     date_start, date_stop = get_dates(0)
-                    report = build_report(date_start, date_stop, "Trong tháng")
+                    period_label = "Trong tháng"
                 else:
                     continue
+
+                pancake_pages_data = get_pancake_pages_data(date_start, date_stop)
+                report = build_report(date_start, date_stop, period_label, pancake_pages_data=pancake_pages_data)
 
                 send_telegram(report)
                 print(f"✅ Đã gửi báo cáo: {data_val}")
@@ -420,17 +435,20 @@ if __name__ == "__main__":
 
     if period == "period_7":
         date_start, date_stop = get_dates(7)
-        report = build_report(date_start, date_stop, "7 ngày qua")
+        pancake_pages_data = get_pancake_pages_data(date_start, date_stop)
+        report = build_report(date_start, date_stop, "7 ngày qua", pancake_pages_data=pancake_pages_data)
         send_telegram(report)
 
     elif period == "period_14":
         date_start, date_stop = get_dates(14)
-        report = build_report(date_start, date_stop, "14 ngày qua")
+        pancake_pages_data = get_pancake_pages_data(date_start, date_stop)
+        report = build_report(date_start, date_stop, "14 ngày qua", pancake_pages_data=pancake_pages_data)
         send_telegram(report)
 
     elif period == "period_month":
         date_start, date_stop = get_dates(0)
-        report = build_report(date_start, date_stop, "Trong tháng")
+        pancake_pages_data = get_pancake_pages_data(date_start, date_stop)
+        report = build_report(date_start, date_stop, "Trong tháng", pancake_pages_data=pancake_pages_data)
         send_telegram(report)
 
     else:
