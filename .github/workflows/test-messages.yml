@@ -1,0 +1,25 @@
+name: Test Messages Count
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run test
+        env:
+          META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+          AD_ACCOUNT_1: ${{ secrets.AD_ACCOUNT_1 }}
+          AD_ACCOUNT_2: ${{ secrets.AD_ACCOUNT_2 }}
+          AD_ACCOUNT_3: ${{ secrets.AD_ACCOUNT_3 }}
+        run: python test_messages.py
