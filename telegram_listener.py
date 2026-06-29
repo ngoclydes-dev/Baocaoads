@@ -5,7 +5,6 @@ import requests
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
-
 OFFSET_FILE = "telegram_offset.txt"
 
 
@@ -61,12 +60,20 @@ def parse_command(text):
     if text in ["/thang", "trong tháng"]:
         return ("period_month", None)
 
+    # Format YYYY-MM-DD (dấu gạch ngang)
     match = re.match(r"/ngay\s+(\d{4})-(\d{2})-(\d{2})", text)
     if match:
         y, m, d = match.groups()
         return ("custom_date", f"{y}-{m}-{d}")
 
+    # Format DD/MM/YYYY (dấu gạch chéo)
     match = re.match(r"/ngay\s+(\d{2})/(\d{2})/(\d{4})", text)
+    if match:
+        d, m, y = match.groups()
+        return ("custom_date", f"{y}-{m}-{d}")
+
+    # Format DD.MM.YYYY (dấu chấm) ← FIX: thêm mới
+    match = re.match(r"/ngay\s+(\d{2})\.(\d{2})\.(\d{4})", text)
     if match:
         d, m, y = match.groups()
         return ("custom_date", f"{y}-{m}-{d}")
@@ -81,9 +88,12 @@ if __name__ == "__main__":
     if not updates:
         print("Không có tin nhắn mới.")
     else:
-        last_update_id = offset
         for update in updates:
-            last_update_id = update["update_id"] + 1
+            update_id = update["update_id"]
+
+            # FIX: Save offset NGAY sau mỗi update để tránh xử lý lặp khi lỗi
+            save_offset(update_id + 1)
+
             message = update.get("message")
             if not message:
                 continue
@@ -112,5 +122,3 @@ if __name__ == "__main__":
                     "/thang - Báo cáo trong tháng\n"
                     "/ngay YYYY-MM-DD - Báo cáo theo ngày cụ thể"
                 )
-
-        save_offset(last_update_id)
