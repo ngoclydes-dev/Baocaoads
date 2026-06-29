@@ -17,11 +17,20 @@ params = {
     "access_token": META_ACCESS_TOKEN,
 }
 resp = requests.get(url, params=params, timeout=30)
-data = resp.json().get("data", [])
-if data:
-    unique = data[0].get("unique_actions", [])
-    for u in unique:
-        if "messag" in u.get("action_type", ""):
-            print(u)
+print("Status code:", resp.status_code)
+
+result = resp.json()
+data = result.get("data", [])
+
+if not data:
+    print("KHÔNG có data. Raw response:")
+    print(json.dumps(result, indent=2, ensure_ascii=False))
 else:
-    print(resp.json())
+    print("=== unique_actions (toàn bộ) ===")
+    unique = data[0].get("unique_actions")
+    if unique is None:
+        print("Field 'unique_actions' KHÔNG tồn tại trong response.")
+    elif len(unique) == 0:
+        print("Field 'unique_actions' tồn tại nhưng RỖNG ([]).")
+    else:
+        print(json.dumps(unique, indent=2, ensure_ascii=False))
