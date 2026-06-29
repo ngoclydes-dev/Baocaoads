@@ -5,6 +5,7 @@ Meta Ads → Telegram Daily Report Bot v2
 - Có nút bấm: 7 ngày, 14 ngày, trong tháng
 - Cảnh báo sắp đạt ngưỡng thanh toán (còn ≤ 1.000.000đ)
 - Cảnh báo trước 1 ngày đến ngày lập hóa đơn
+- Hỗ trợ xem báo cáo theo ngày cụ thể (custom_date)
 """
 
 import os
@@ -451,6 +452,16 @@ if __name__ == "__main__":
         pancake_pages_data = get_pancake_pages_data(date_start, date_stop)
         report = build_report(date_start, date_stop, "Trong tháng", pancake_pages_data=pancake_pages_data)
         send_telegram(report)
+
+    elif period == "custom_date":
+        custom_date = os.getenv("CUSTOM_DATE")
+        if not custom_date:
+            print("❌ Thiếu CUSTOM_DATE")
+            send_telegram("⚠️ Lỗi: thiếu ngày để báo cáo (CUSTOM_DATE rỗng).")
+        else:
+            pancake_pages_data = get_pancake_pages_data(custom_date, custom_date)
+            report = build_report(custom_date, custom_date, "Theo ngày", pancake_pages_data=pancake_pages_data)
+            send_telegram(report)
 
     else:
         daily_job()
