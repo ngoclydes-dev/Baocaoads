@@ -7,6 +7,10 @@ on:
         description: 'Period to report'
         required: false
         default: 'daily'
+      custom_date:
+        description: 'Chỉ điền khi period = custom_date. Định dạng: YYYY-MM-DD'
+        required: false
+        default: ''
 
 jobs:
   send-report:
@@ -38,8 +42,5 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           REPORT_TIME: "07:30"
           PERIOD: ${{ github.event.inputs.period || 'daily' }}
+          CUSTOM_DATE: ${{ github.event.inputs.custom_date || '' }}
         run: python meta_ads_bot.py
-
-        
-
-
