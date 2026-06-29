@@ -271,6 +271,8 @@ def build_report(date_start: str, date_stop: str, period_label: str, pancake_pag
     lines.append(f"💰 Giá/tin nhắn: {avg_cost:,.0f} {currency}")
     if pancake_pages_data is not None:
         lines.append(f"📞 Tổng SĐT mới: {total_phones}")
+        cost_per_phone = (total_spend / total_phones) if total_phones > 0 else 0
+        lines.append(f"💵 Chi phí/SĐT mới: {cost_per_phone:,.0f} {currency}")
     lines.append(f"🛒 Lượt mua: {total_buys:,}")
 
     return "\n".join(lines)
