@@ -32,16 +32,13 @@ AD_ACCOUNTS = [
     os.getenv("AD_ACCOUNT_4"),
 ]
 
-# Ngưỡng thanh toán thật của từng tài khoản (lấy từ Meta Ads Manager → Billing settings)
-# Thứ tự tương ứng với AD_ACCOUNTS ở trên
 ACCOUNT_THRESHOLDS = [
-    53_015_250,   # Tài khoản 1650
-    20_000_000,   # Tài khoản 3742
-    31_667_350,   # Tài khoản 5186
-    0,            # Tài khoản 4 - chưa có ngưỡng, để 0 sẽ bỏ qua check này
+    53_015_250,
+    20_000_000,
+    31_667_350,
+    0,
 ]
 
-# Báo trước khi còn bao nhiêu tiền nữa thì đạt ngưỡng
 THRESHOLD_ALERT_AMOUNT = 1_000_000
 
 PANCAKE_PAGES = [
@@ -135,11 +132,10 @@ def get_account_stats(account_id: str, date_start: str, date_stop: str) -> dict:
     cost_per_act = insights.get("cost_per_action_type", [])
     currency     = account_info.get("currency", "VND")
 
-    messages = extract_action(actions, "onsite_conversion.messaging_conversation_started_7d")
-    if messages == 0:
-        messages = extract_action(actions, "onsite_conversion.messaging_first_reply")
+    # Dùng "messaging_first_reply" để khớp với cột "Người liên hệ nhắn tin mới" trên Ads Manager
+    messages = extract_action(actions, "onsite_conversion.messaging_first_reply")
 
-    cost_per_msg = extract_cost_per_action(cost_per_act, "onsite_conversion.messaging_conversation_started_7d")
+    cost_per_msg = extract_cost_per_action(cost_per_act, "onsite_conversion.messaging_first_reply")
     if cost_per_msg == 0:
         cost_per_msg = (spend / messages) if messages > 0 else 0
 
@@ -348,7 +344,6 @@ def check_spending_alert():
                     else:
                         alerts.append(f"⚠️ {name} còn {remaining:,.0f}đ đến ngưỡng thanh toán.")
 
-            # Cảnh báo trước 1 ngày đến ngày lập hóa đơn cố định
             bill_day = BILL_DAYS[i-1] if i-1 < len(BILL_DAYS) else 0
             if bill_day > 0:
                 now      = datetime.now(VN_TZ)
