@@ -168,7 +168,8 @@ def get_pancake_conversations(page_id: str, limit: int = 500) -> list:
 def get_pancake_new_phones(page_id: str, date_start: str, date_stop: str) -> list:
     """
     Lấy danh sách SĐT mới phát sinh trong khoảng [date_start, date_stop] (YYYY-MM-DD, bao gồm cả 2 đầu).
-    Lọc ngày và khử trùng SĐT thủ công trong Python.
+    Mỗi cuộc hội thoại chỉ tính 1 SĐT (lấy số đầu tiên/mới nhất), tránh đếm trùng khi khách gửi nhiều số.
+    Khử trùng SĐT giữa các cuộc hội thoại khác nhau.
     """
     conversations = get_pancake_conversations(page_id, limit=500)
 
@@ -180,14 +181,18 @@ def get_pancake_new_phones(page_id: str, date_start: str, date_stop: str) -> lis
         if not inserted or inserted < date_start or inserted > date_stop:
             continue
 
-        for phone_info in conv.get("recent_phone_numbers", []):
-            phone = phone_info.get("phone_number", "")
-            if phone and phone not in seen_phones:
-                seen_phones.add(phone)
-                phones.append({
-                    "phone": phone,
-                    "name": conv.get("customers", [{}])[0].get("name", ""),
-                })
+        phone_list = conv.get("recent_phone_numbers", [])
+        if not phone_list:
+            continue
+
+        # Chỉ lấy SĐT đầu tiên (mới nhất) trong cuộc hội thoại này
+        latest_phone = phone_list[0].get("phone_number", "")
+        if latest_phone and latest_phone not in seen_phones:
+            seen_phones.add(latest_phone)
+            phones.append({
+                "phone": latest_phone,
+                "name": conv.get("customers", [{}])[0].get("name", ""),
+            })
 
     return phones
 
