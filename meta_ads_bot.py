@@ -6,6 +6,7 @@ Meta Ads → Telegram Daily Report Bot v2
 - Cảnh báo sắp đạt ngưỡng thanh toán (còn ≤ 1.000.000đ)
 - Cảnh báo trước 1 ngày đến ngày lập hóa đơn
 - Hỗ trợ xem báo cáo theo ngày cụ thể (custom_date)
+- Thêm thống kê Lịch hẹn từ Google Sheet
 """
 
 import os
@@ -25,6 +26,7 @@ PANCAKE_TOKEN = os.getenv("PANCAKE_TOKEN")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID   = os.getenv("TELEGRAM_CHAT_ID")
 REPORT_TIME        = os.getenv("REPORT_TIME", "07:30")
+APPS_SCRIPT_URL    = os.getenv("APPS_SCRIPT_URL")
 
 AD_ACCOUNTS = [
     os.getenv("AD_ACCOUNT_1"),
@@ -133,7 +135,6 @@ def get_account_stats(account_id: str, date_start: str, date_stop: str) -> dict:
     cost_per_act = insights.get("cost_per_action_type", [])
     currency     = account_info.get("currency", "VND")
 
-    # Dùng "messaging_first_reply" để khớp với cột "Người liên hệ nhắn tin mới" trên Ads Manager
     messages = extract_action(actions, "onsite_conversion.messaging_first_reply")
 
     cost_per_msg = extract_cost_per_action(cost_per_act, "onsite_conversion.messaging_first_reply")
@@ -185,7 +186,6 @@ def get_pancake_new_phones(page_id: str, date_start: str, date_stop: str) -> lis
         if not phone_list:
             continue
 
-        # Chỉ lấy SĐT đầu tiên (mới nhất) trong cuộc hội thoại này
         latest_phone = phone_list[0].get("phone_number", "")
         if latest_phone and latest_phone not in seen_phones:
             seen_phones.add(latest_phone)
@@ -209,11 +209,60 @@ def get_pancake_pages_data(date_start: str, date_stop: str) -> list:
             print(f"❌ Lỗi Pancake {page['name']}: {e}")
     return pancake_pages_data
 
+# ─── GOOGLE SHEET - LỊCH HẸN ─────────────────────────────────
+
+def vn_date_from_iso(iso_str: str) -> str:
+    """
+    Chuyển chuỗi ISO UTC từ Apps Script (luôn dạng '...T17:00:00.000Z')
+    sang ngày VN (YYYY-MM-DD). Giờ 17:00 UTC = 00:00 VN ngày hôm sau.
+    """
+    try:
+        dt_utc = datetime.strptime(iso_str, "%Y-%m-%dT%H:%M:%S.%fZ")
+        dt_vn = dt_utc + timedelta(hours=7)
+        return dt_vn.strftime("%Y-%m-%d")
+    except Exception:
+        return ""
+
+
+def get_appointment_count(date_start: str, date_stop: str) -> int:
+    """
+    Đọc dữ liệu từ Google Sheet (qua Apps Script Web App), đếm số dòng
+    có TÌNH TRẠNG CHỐT = "Chốt lịch hẹn" HOẶC bắt đầu bằng "Đã chuyển đổi"
+    (khách đến trong ngày cũng tính là lịch hẹn trong ngày đó)
+    trong khoảng [date_start, date_stop] (YYYY-MM-DD, theo giờ VN).
+    """
+    if not APPS_SCRIPT_URL:
+        print("❌ Thiếu APPS_SCRIPT_URL")
+        return 0
+
+    resp = requests.get(APPS_SCRIPT_URL, timeout=30)
+    resp.raise_for_status()
+    payload = resp.json()
+    rows = payload.get("data", [])
+
+    lich_hen = 0
+
+    for row in rows:
+        ngay_raw = row.get("NGÀY", "")
+        if not ngay_raw:
+            continue
+
+        vn_date = vn_date_from_iso(ngay_raw)
+        if not vn_date or vn_date < date_start or vn_date > date_stop:
+            continue
+
+        status = (row.get("TÌNH TRẠNG CHỐT", "") or "").strip()
+        if status == "Chốt lịch hẹn" or status.startswith("Đã chuyển đổi"):
+            lich_hen += 1
+
+    return lich_hen
+
 # ─── BUILD REPORT ───────────────────────────────────────────
 
-def build_report(date_start: str, date_stop: str, period_label: str, pancake_pages_data=None) -> str:
+def build_report(date_start: str, date_stop: str, period_label: str, pancake_pages_data=None, appointment_count=None) -> str:
     """
     pancake_pages_data: list các tuple (tên_page, số_sđt_mới), hoặc None nếu không cần phần Pancake.
+    appointment_count: int số lịch hẹn mới, hoặc None nếu không cần phần này.
     """
     now = datetime.now(VN_TZ)
 
@@ -278,6 +327,10 @@ def build_report(date_start: str, date_stop: str, period_label: str, pancake_pag
         lines.append(f"📞 Tổng SĐT mới: {total_phones}")
         cost_per_phone = (total_spend / total_phones) if total_phones > 0 else 0
         lines.append(f"💵 Chi phí/SĐT mới: {cost_per_phone:,.0f} {currency}")
+    if appointment_count is not None:
+        cost_per_appt = (total_spend / appointment_count) if appointment_count > 0 else 0
+        lines.append(f"📅 Lịch hẹn mới: {appointment_count}")
+        lines.append(f"📆 Chi phí/Lịch hẹn: {cost_per_appt:,.0f} {currency}")
     lines.append(f"🛒 Lượt mua: {total_buys:,}")
 
     return "\n".join(lines)
@@ -376,7 +429,8 @@ def daily_job():
     try:
         date_start, date_stop = get_dates(1)
         pancake_pages_data = get_pancake_pages_data(date_start, date_stop)
-        report = build_report(date_start, date_stop, "Hôm qua", pancake_pages_data=pancake_pages_data)
+        appointment_count = get_appointment_count(date_start, date_stop)
+        report = build_report(date_start, date_stop, "Hôm qua", pancake_pages_data=pancake_pages_data, appointment_count=appointment_count)
 
         print("=== NỘI DUNG TIN NHẮN ===")
         print(repr(report))
@@ -426,7 +480,8 @@ def listen_callbacks():
                     continue
 
                 pancake_pages_data = get_pancake_pages_data(date_start, date_stop)
-                report = build_report(date_start, date_stop, period_label, pancake_pages_data=pancake_pages_data)
+                appointment_count = get_appointment_count(date_start, date_stop)
+                report = build_report(date_start, date_stop, period_label, pancake_pages_data=pancake_pages_data, appointment_count=appointment_count)
 
                 send_telegram(report)
                 print(f"✅ Đã gửi báo cáo: {data_val}")
@@ -445,19 +500,22 @@ if __name__ == "__main__":
     if period == "period_7":
         date_start, date_stop = get_dates(7)
         pancake_pages_data = get_pancake_pages_data(date_start, date_stop)
-        report = build_report(date_start, date_stop, "7 ngày qua", pancake_pages_data=pancake_pages_data)
+        appointment_count = get_appointment_count(date_start, date_stop)
+        report = build_report(date_start, date_stop, "7 ngày qua", pancake_pages_data=pancake_pages_data, appointment_count=appointment_count)
         send_telegram(report)
 
     elif period == "period_14":
         date_start, date_stop = get_dates(14)
         pancake_pages_data = get_pancake_pages_data(date_start, date_stop)
-        report = build_report(date_start, date_stop, "14 ngày qua", pancake_pages_data=pancake_pages_data)
+        appointment_count = get_appointment_count(date_start, date_stop)
+        report = build_report(date_start, date_stop, "14 ngày qua", pancake_pages_data=pancake_pages_data, appointment_count=appointment_count)
         send_telegram(report)
 
     elif period == "period_month":
         date_start, date_stop = get_dates(0)
         pancake_pages_data = get_pancake_pages_data(date_start, date_stop)
-        report = build_report(date_start, date_stop, "Trong tháng", pancake_pages_data=pancake_pages_data)
+        appointment_count = get_appointment_count(date_start, date_stop)
+        report = build_report(date_start, date_stop, "Trong tháng", pancake_pages_data=pancake_pages_data, appointment_count=appointment_count)
         send_telegram(report)
 
     elif period == "custom_date":
@@ -467,7 +525,8 @@ if __name__ == "__main__":
             send_telegram("⚠️ Lỗi: thiếu ngày để báo cáo (CUSTOM_DATE rỗng).")
         else:
             pancake_pages_data = get_pancake_pages_data(custom_date, custom_date)
-            report = build_report(custom_date, custom_date, "Theo ngày", pancake_pages_data=pancake_pages_data)
+            appointment_count = get_appointment_count(custom_date, custom_date)
+            report = build_report(custom_date, custom_date, "Theo ngày", pancake_pages_data=pancake_pages_data, appointment_count=appointment_count)
             send_telegram(report)
 
     else:
