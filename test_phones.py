@@ -6,7 +6,7 @@ PANCAKE_TOKEN = os.getenv("PANCAKE_TOKEN")
 VN_TZ = timezone(timedelta(hours=7))
 
 page_id = "103905658090177"  # Love + Rosa Skin Center
-date_check = "2026-06-27"  # đổi thành ngày bạn đang đối chiếu
+date_check = "2026-06-29"  # đổi thành ngày bạn đang đối chiếu
 
 url = f"https://pancake.vn/api/v1/pages/{page_id}/conversations"
 params = {"access_token": PANCAKE_TOKEN, "limit": 500}
