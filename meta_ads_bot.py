@@ -426,20 +426,24 @@ def check_spending_alert():
 
 def daily_job():
     print(f"[{datetime.now(VN_TZ).strftime('%H:%M:%S')}] Đang lấy dữ liệu Meta Ads...")
+
+    # Gửi báo cáo chính
     try:
         date_start, date_stop = get_dates(1)
-        pancake_pages_data = get_pancake_pages_data(date_start, date_stop)
-        appointment_count = get_appointment_count(date_start, date_stop)
-        report = build_report(date_start, date_stop, "Hôm qua", pancake_pages_data=pancake_pages_data, appointment_count=appointment_count)
-
+        report = build_report_with_sheet_data(date_start, date_stop, "Hôm qua")
         print("=== NỘI DUNG TIN NHẮN ===")
         print(repr(report))
         send_telegram_with_buttons(report)
-        check_spending_alert()
         print("✅ Đã gửi báo cáo lên Telegram.")
     except Exception as e:
-        print(f"❌ Lỗi: {e}")
+        print(f"❌ Lỗi gửi báo cáo: {e}")
         send_telegram(f"⚠️ Meta Ads Bot lỗi\n{e}")
+
+    # Cảnh báo thanh toán - chạy độc lập, không bị ảnh hưởng nếu báo cáo lỗi
+    try:
+        check_spending_alert()
+    except Exception as e:
+        print(f"❌ Lỗi check spending alert: {e}")
 
 
 # ─── LẮNG NGHE NÚT BẤM ─────────────────────────────────────
