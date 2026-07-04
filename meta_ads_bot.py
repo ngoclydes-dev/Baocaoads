@@ -48,9 +48,9 @@ THRESHOLD_ALERT_AMOUNT = 2_000_000
 
 PANCAKE_PAGES = [
     {"id": "103905658090177", "name": "Love + Rosa Skin Center"},
-    {"id": "108481465282735", "name": "Love + Rosa Quang Trung Go Vap"},
-    {"id": "105124961775914", "name": "Love + Rosa Cham Soc Da Mun"},
-    {"id": "101059842189274", "name": "Love + Rosa Ky Dong Quan 3"},
+    {"id": "108481465282735", "name": "Love + Rosa Quang Trung Gò Vấp"},
+    {"id": "105124961775914", "name": "Love + Rosa Chăm Sóc Da Mụn"},
+    {"id": "101059842189274", "name": "Love + Rosa Kỳ Đồng Quận 3"},
 ]
 
 BILL_DAYS = [
@@ -187,13 +187,12 @@ def get_pancake_pages_data(date_start: str, date_stop: str) -> list:
             pancake_pages_data.append((page["name"], len(phones)))
         except Exception as e:
             pancake_pages_data.append((page["name"], 0))
-            print(f"Loi Pancake {page['name']}: {e}")
+            print(f"❌ Lỗi Pancake {page['name']}: {e}")
     return pancake_pages_data
 
 # ─── GOOGLE SHEET ─────────────────────────────────────────────
 
 def vn_date_from_iso(iso_str: str) -> str:
-    """Chuyển ISO UTC từ Apps Script sang ngày VN (YYYY-MM-DD)."""
     try:
         dt_utc = datetime.strptime(iso_str, "%Y-%m-%dT%H:%M:%S.%fZ")
         dt_vn = dt_utc + timedelta(hours=7)
@@ -203,7 +202,6 @@ def vn_date_from_iso(iso_str: str) -> str:
 
 
 def vn_date_from_ddmmyyyy(date_str: str) -> str:
-    """Chuyển ngày dạng dd/MM/yyyy sang YYYY-MM-DD."""
     try:
         dt = datetime.strptime(str(date_str).strip(), "%d/%m/%Y")
         return dt.strftime("%Y-%m-%d")
@@ -225,9 +223,8 @@ def normalize_phone(raw_phone) -> str:
 
 
 def fetch_sheet_data() -> dict:
-    """Gọi Apps Script Web App, trả về dict gồm data và livechat."""
     if not APPS_SCRIPT_URL:
-        print("Thieu APPS_SCRIPT_URL")
+        print("❌ Thiếu APPS_SCRIPT_URL")
         return {"data": [], "livechat": []}
 
     resp = requests.get(APPS_SCRIPT_URL, timeout=30)
@@ -240,35 +237,33 @@ def fetch_sheet_data() -> dict:
 
 
 def get_appointment_count(rows: list, date_start: str, date_stop: str) -> int:
-    """Đếm Lịch hẹn: TINH TRANG CHOT = Chot lich hen hoac Da chuyen doi."""
     lich_hen = 0
     for row in rows:
-        ngay_raw = row.get("NGAY", "") or row.get("NGÀY", "")
+        ngay_raw = row.get("NGÀY", "") or row.get("NGAY", "")
         if not ngay_raw:
             continue
         vn_date = vn_date_from_iso(str(ngay_raw))
         if not vn_date or vn_date < date_start or vn_date > date_stop:
             continue
-        status = (row.get("TINH TRANG CHOT", "") or row.get("TÌNH TRẠNG CHỐT", "") or "").strip()
-        if status == "Chot lich hen" or status == "Chốt lịch hẹn" or status.startswith("Da chuyen doi") or status.startswith("Đã chuyển đổi"):
+        status = (row.get("TÌNH TRẠNG CHỐT", "") or row.get("TINH TRANG CHOT", "") or "").strip()
+        if status == "Chốt lịch hẹn" or status.startswith("Đã chuyển đổi"):
             lich_hen += 1
     return lich_hen
 
 
 def get_new_phone_count_sheet(rows: list, date_start: str, date_stop: str) -> int:
-    """Đếm SĐT hợp lệ (khử trùng) từ sheet DATA."""
     seen_phones = set()
     for row in rows:
-        ngay_raw = row.get("NGAY", "") or row.get("NGÀY", "")
+        ngay_raw = row.get("NGÀY", "") or row.get("NGAY", "")
         if not ngay_raw:
             continue
         vn_date = vn_date_from_iso(str(ngay_raw))
         if not vn_date or vn_date < date_start or vn_date > date_stop:
             continue
-        status = (row.get("TINH TRANG SDT", "") or row.get("TÌNH TRẠNG SĐT", "") or "").strip()
-        if status != "Hop le" and status != "Hợp lệ":
+        status = (row.get("TÌNH TRẠNG SĐT", "") or row.get("TINH TRANG SDT", "") or "").strip()
+        if status != "Hợp lệ":
             continue
-        phone = normalize_phone(row.get("SDT", "") or row.get("SĐT", ""))
+        phone = normalize_phone(row.get("SĐT", "") or row.get("SDT", ""))
         if phone:
             seen_phones.add(phone)
     return len(seen_phones)
@@ -277,7 +272,7 @@ def get_new_phone_count_sheet(rows: list, date_start: str, date_stop: str) -> in
 def get_ph2l_count(livechat_rows: list, date_start: str, date_stop: str) -> int:
     count = 0
     for row in livechat_rows:
-        ngay_raw = str(row.get("NGAY", "") or row.get("NGÀY", "") or "").strip()
+        ngay_raw = str(row.get("NGÀY", "") or row.get("NGAY", "") or "").strip()
         if not ngay_raw:
             continue
         vn_date = vn_date_from_ddmmyyyy(ngay_raw)
@@ -285,7 +280,7 @@ def get_ph2l_count(livechat_rows: list, date_start: str, date_stop: str) -> int:
             vn_date = vn_date_from_iso(ngay_raw)
         if not vn_date or vn_date < date_start or vn_date > date_stop:
             continue
-        ghi_chu = (row.get("Ghi chu", "") or row.get("Ghi chú", "") or "").strip()
+        ghi_chu = (row.get("Ghi chú", "") or row.get("Ghi chu", "") or "").strip()
         if ghi_chu == "PH2L":
             count += 1
     return count
@@ -305,16 +300,16 @@ def build_report(
 
     if date_start == date_stop:
         date_display = datetime.strptime(date_stop, "%Y-%m-%d").strftime("%d/%m/%Y")
-        date_line = f"Ngay {date_display}"
+        date_line = f"📅 Ngày {date_display}"
     else:
         display_start = datetime.strptime(date_start, "%Y-%m-%d").strftime("%d/%m")
         display_stop  = datetime.strptime(date_stop,  "%Y-%m-%d").strftime("%d/%m/%Y")
-        date_line = f"{display_start} - {display_stop}"
+        date_line = f"📅 {display_start} – {display_stop}"
 
     lines = [
-        f"BAO CAO META ADS - {period_label.upper()}",
-        f"📅 {date_line}",
-        f"🕐 Cap nhat luc {now.strftime('%H:%M')}",
+        f"📊 BÁO CÁO META ADS – {period_label.upper()}",
+        date_line,
+        f"🕐 Cập nhật lúc {now.strftime('%H:%M')}",
         "=" * 32,
     ]
 
@@ -338,66 +333,66 @@ def build_report(
             total_buys  += s["purchases"]
             lines.extend([
                 f"🏷️ {s['name']}",
-                f"💸 Chi tieu: {s['spend']:,.0f} {s['currency']}",
-                f"💬 Tin nhan moi: {s['messages']:,}",
-                f"💰 Gia/tin nhan: {s['cost_per_msg']:,.0f} {s['currency']}",
-                f"🛒 Luot mua: {s['purchases']:,}",
+                f"💸 Chi tiêu: {s['spend']:,.0f} {s['currency']}",
+                f"💬 Tin nhắn mới: {s['messages']:,}",
+                f"💰 Giá/tin nhắn: {s['cost_per_msg']:,.0f} {s['currency']}",
+                f"🛒 Lượt mua: {s['purchases']:,}",
             ])
         except Exception as e:
-            lines.append(f"Tai khoan {i} loi: {e}")
+            lines.append(f"❌ Tài khoản {i} lỗi: {e}")
 
+    # Pancake - SĐT theo từng page
     total_pancake_phones = 0
     if pancake_pages_data is not None:
         lines.append("-" * 32)
-        lines.append("📱 PANCAKE - SDT MOI")
+        lines.append("📱 PANCAKE - SĐT MỚI")
         for page_name, count in pancake_pages_data:
             total_pancake_phones += count
             lines.append(f"🏷️ {page_name}: {count}")
 
+    # Sheet - Lịch hẹn & SĐT hợp lệ & PH2L
     if sheet_phone_count is not None or appointment_count is not None or ph2l_count is not None:
         lines.append("-" * 32)
-        lines.append("📋 DU LIEU TU SHEET")
+        lines.append("📋 DỮ LIỆU TỪ SHEET")
         if sheet_phone_count is not None:
-            lines.append(f"📞 SDT moi hop le: {sheet_phone_count}")
+            lines.append(f"📞 SĐT mới hợp lệ: {sheet_phone_count}")
         if appointment_count is not None:
-            lines.append(f"📅 Lich hen moi: {appointment_count}")
+            lines.append(f"📅 Lịch hẹn mới: {appointment_count}")
         if ph2l_count is not None:
             lines.append(f"💬 PH2L: {ph2l_count}")
 
+    # Tổng cộng
     lines.append("-" * 32)
     avg_cost = (total_spend / total_msgs) if total_msgs > 0 else 0
-    lines.append("📌 TONG CONG")
-    lines.append(f"💸 Chi tieu: {total_spend:,.0f} {currency}")
-    lines.append(f"💬 Tin nhan moi: {total_msgs:,}")
-    lines.append(f"💰 Gia/tin nhan: {avg_cost:,.0f} {currency}")
+    lines.append("📌 TỔNG CỘNG")
+    lines.append(f"💸 Chi tiêu: {total_spend:,.0f} {currency}")
+    lines.append(f"💬 Tin nhắn mới: {total_msgs:,}")
+    lines.append(f"💰 Giá/tin nhắn: {avg_cost:,.0f} {currency}")
     if pancake_pages_data is not None:
-        cost_per_pancake = (total_spend / total_pancake_phones) if total_pancake_phones > 0 else 0
-        lines.append(f"📞 Tong SDT moi (Pancake): {total_pancake_phones}")
-        lines.append(f"💵 Chi phi/SDT moi: {cost_per_pancake:,.0f} {currency}")
+        lines.append(f"📞 Tổng SĐT mới (Pancake): {total_pancake_phones}")
     if sheet_phone_count is not None:
         cost_per_sheet = (total_spend / sheet_phone_count) if sheet_phone_count > 0 else 0
-        lines.append(f"📞 Tong SDT hop le (Sheet): {sheet_phone_count}")
-        lines.append(f"💵 Chi phi/SDT hop le: {cost_per_sheet:,.0f} {currency}")
+        lines.append(f"📞 Tổng SĐT hợp lệ (Sheet): {sheet_phone_count}")
+        lines.append(f"💵 Chi phí/SĐT hợp lệ: {cost_per_sheet:,.0f} {currency}")
     if appointment_count is not None:
         cost_per_appt = (total_spend / appointment_count) if appointment_count > 0 else 0
-        lines.append(f"📅 Lich hen moi: {appointment_count}")
-        lines.append(f"📆 Chi phi/Lich hen: {cost_per_appt:,.0f} {currency}")
+        lines.append(f"📅 Lịch hẹn mới: {appointment_count}")
+        lines.append(f"📆 Chi phí/Lịch hẹn: {cost_per_appt:,.0f} {currency}")
     if ph2l_count is not None:
         ph2l_ratio = (ph2l_count / total_msgs * 100) if total_msgs > 0 else 0
-        lines.append(f"💬 Tong PH2L: {ph2l_count}")
-        lines.append(f"📊 Ty le PH2L/Tin nhan: {ph2l_ratio:.1f}%")
-    lines.append(f"🛒 Luot mua: {total_buys:,}")
+        lines.append(f"💬 Tổng PH2L: {ph2l_count}")
+        lines.append(f"📊 Tỷ lệ PH2L/Tin nhắn: {ph2l_ratio:.1f}%")
+    lines.append(f"🛒 Lượt mua: {total_buys:,}")
 
     return "\n".join(lines)
 
 
 def build_report_with_all_data(date_start: str, date_stop: str, period_label: str) -> str:
-    """Lấy dữ liệu Pancake + Sheet (DATA + Livechat), rồi build báo cáo."""
     # Pancake
     try:
         pancake_pages_data = get_pancake_pages_data(date_start, date_stop)
     except Exception as e:
-        print(f"Loi Pancake: {e}")
+        print(f"❌ Lỗi Pancake: {e}")
         pancake_pages_data = None
 
     # Sheet DATA + Livechat
@@ -409,7 +404,7 @@ def build_report_with_all_data(date_start: str, date_stop: str, period_label: st
         appointment_count = get_appointment_count(rows, date_start, date_stop)
         ph2l_count = get_ph2l_count(livechat_rows, date_start, date_stop)
     except Exception as e:
-        print(f"Loi Sheet: {e}")
+        print(f"❌ Lỗi Sheet: {e}")
         sheet_phone_count = None
         appointment_count = None
         ph2l_count = None
@@ -450,9 +445,9 @@ def send_telegram_with_buttons(message: str):
         "text":    message,
         "reply_markup": {
             "inline_keyboard": [[
-                {"text": "7 ngay",       "callback_data": "period_7"},
-                {"text": "14 ngay",      "callback_data": "period_14"},
-                {"text": "Trong thang",  "callback_data": "period_month"},
+                {"text": "📅 7 ngày",      "callback_data": "period_7"},
+                {"text": "📅 14 ngày",     "callback_data": "period_14"},
+                {"text": "📅 Trong tháng", "callback_data": "period_month"},
             ]]
         }
     }
@@ -476,7 +471,7 @@ def check_spending_alert():
             continue
         try:
             info     = get_account_billing(account_id)
-            name     = get_short_name(info.get("name", ""), fallback=f"Tai khoan {i}")
+            name     = get_short_name(info.get("name", ""), fallback=f"Tài khoản {i}")
             currency = info.get("currency", "VND")
             balance  = float(info.get("balance", 0))
 
@@ -486,53 +481,53 @@ def check_spending_alert():
                 remaining = threshold - balance
                 if remaining <= THRESHOLD_ALERT_AMOUNT:
                     if remaining <= 0:
-                        alerts.append(f"🔴 {name} DA DAT/VUOT nguong thanh toan! Vui long kiem tra the.")
+                        alerts.append(f"🔴 {name} ĐÃ ĐẠT/VƯỢT ngưỡng thanh toán! Vui lòng kiểm tra thẻ.")
                     else:
-                        alerts.append(f"⚠️ {name} con {remaining:,.0f}d den nguong thanh toan.")
+                        alerts.append(f"⚠️ {name} còn {remaining:,.0f}đ đến ngưỡng thanh toán.")
 
             bill_day = BILL_DAYS[i-1] if i-1 < len(BILL_DAYS) else 0
             if bill_day > 0:
                 now      = datetime.now(VN_TZ)
                 tomorrow = now + timedelta(days=1)
                 if tomorrow.day == bill_day:
-                    alerts.append(f"📅 {name} con 1 ngay nua den ngay lap hoa don, vui long nap tien/kiem tra the.")
+                    alerts.append(f"📅 {name} còn 1 ngày nữa đến ngày lập hóa đơn, vui lòng nạp tiền/kiểm tra thẻ.")
         except Exception as e:
-            print(f"Loi kiem tra billing tai khoan {i}: {e}")
+            print(f"❌ Lỗi kiểm tra billing tài khoản {i}: {e}")
 
     if alerts:
-        msg  = "CANH BAO THANH TOAN\n"
+        msg  = "🚨 CẢNH BÁO THANH TOÁN\n"
         msg += "-" * 32 + "\n"
         msg += "\n".join(alerts)
         send_telegram(msg)
-        print("Da gui canh bao!")
+        print("✅ Đã gửi cảnh báo!")
     else:
-        print("Tat ca tai khoan con an toan.")
+        print("✅ Tất cả tài khoản còn an toàn.")
 
 
 def daily_job():
-    print(f"[{datetime.now(VN_TZ).strftime('%H:%M:%S')}] Dang lay du lieu Meta Ads...")
+    print(f"[{datetime.now(VN_TZ).strftime('%H:%M:%S')}] Đang lấy dữ liệu Meta Ads...")
 
     try:
         date_start, date_stop = get_dates(1)
-        report = build_report_with_all_data(date_start, date_stop, "Hom qua")
-        print("=== NOI DUNG TIN NHAN ===")
+        report = build_report_with_all_data(date_start, date_stop, "Hôm qua")
+        print("=== NỘI DUNG TIN NHẮN ===")
         print(repr(report))
         send_telegram_with_buttons(report)
-        print("Da gui bao cao len Telegram.")
+        print("✅ Đã gửi báo cáo lên Telegram.")
     except Exception as e:
-        print(f"Loi gui bao cao: {e}")
-        send_telegram(f"Meta Ads Bot loi\n{e}")
+        print(f"❌ Lỗi gửi báo cáo: {e}")
+        send_telegram(f"⚠️ Meta Ads Bot lỗi\n{e}")
 
     try:
         check_spending_alert()
     except Exception as e:
-        print(f"Loi check spending alert: {e}")
+        print(f"❌ Lỗi check spending alert: {e}")
 
 
-# ─── LANG NGHE NUT BAM ──────────────────────────────────────
+# ─── LẮNG NGHE NÚT BẤM ─────────────────────────────────────
 
 def listen_callbacks():
-    print("Dang lang nghe nut bam...")
+    print("👂 Đang lắng nghe nút bấm...")
     url    = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getUpdates"
     offset = None
 
@@ -552,26 +547,26 @@ def listen_callbacks():
 
                 answer_callback(cb["id"])
                 data_val = cb.get("data", "")
-                print(f"Nhan callback: {data_val}")
+                print(f"🔔 Nhận callback: {data_val}")
 
                 if data_val == "period_7":
                     date_start, date_stop = get_dates(7)
-                    period_label = "7 ngay qua"
+                    period_label = "7 ngày qua"
                 elif data_val == "period_14":
                     date_start, date_stop = get_dates(14)
-                    period_label = "14 ngay qua"
+                    period_label = "14 ngày qua"
                 elif data_val == "period_month":
                     date_start, date_stop = get_dates(0)
-                    period_label = "Trong thang"
+                    period_label = "Trong tháng"
                 else:
                     continue
 
                 report = build_report_with_all_data(date_start, date_stop, period_label)
                 send_telegram(report)
-                print(f"Da gui bao cao: {data_val}")
+                print(f"✅ Đã gửi báo cáo: {data_val}")
 
         except Exception as e:
-            print(f"Loi listener: {e}")
+            print(f"❌ Lỗi listener: {e}")
             time.sleep(5)
 
 
@@ -579,30 +574,30 @@ def listen_callbacks():
 
 if __name__ == "__main__":
     period = os.getenv("PERIOD", "daily")
-    print(f"Chay voi period: {period}")
+    print(f"🤖 Chạy với period: {period}")
 
     if period == "period_7":
         date_start, date_stop = get_dates(7)
-        report = build_report_with_all_data(date_start, date_stop, "7 ngay qua")
+        report = build_report_with_all_data(date_start, date_stop, "7 ngày qua")
         send_telegram(report)
 
     elif period == "period_14":
         date_start, date_stop = get_dates(14)
-        report = build_report_with_all_data(date_start, date_stop, "14 ngay qua")
+        report = build_report_with_all_data(date_start, date_stop, "14 ngày qua")
         send_telegram(report)
 
     elif period == "period_month":
         date_start, date_stop = get_dates(0)
-        report = build_report_with_all_data(date_start, date_stop, "Trong thang")
+        report = build_report_with_all_data(date_start, date_stop, "Trong tháng")
         send_telegram(report)
 
     elif period == "custom_date":
         custom_date = os.getenv("CUSTOM_DATE")
         if not custom_date:
-            print("Thieu CUSTOM_DATE")
-            send_telegram("Loi: thieu ngay de bao cao (CUSTOM_DATE rong).")
+            print("❌ Thiếu CUSTOM_DATE")
+            send_telegram("⚠️ Lỗi: thiếu ngày để báo cáo (CUSTOM_DATE rỗng).")
         else:
-            report = build_report_with_all_data(custom_date, custom_date, "Theo ngay")
+            report = build_report_with_all_data(custom_date, custom_date, "Theo ngày")
             send_telegram(report)
 
     else:
