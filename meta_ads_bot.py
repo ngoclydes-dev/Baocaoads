@@ -247,3 +247,272 @@ def build_report(date_start: str, date_stop: str, period_label: str, new_phone_c
         date_display = datetime.strptime(date_stop, "%Y-%m-%d").strftime("%d/%m/%Y")
         date_line = f"📅 Ngày {date_display}"
     else:
+        display_start = datetime.strptime(date_start, "%Y-%m-%d").strftime("%d/%m")
+        display_stop  = datetime.strptime(date_stop,  "%Y-%m-%d").strftime("%d/%m/%Y")
+        date_line = f"📅 {display_start} – {display_stop}"
+
+    lines = [
+        f"📊 BÁO CÁO META ADS – {period_label.upper()}",
+        date_line,
+        f"🕐 Cập nhật lúc {now.strftime('%H:%M')}",
+        "=" * 32,
+    ]
+
+    total_spend = 0.0
+    total_msgs  = 0
+    total_buys  = 0
+    currency    = "VND"
+
+    account_count = 0
+    for i, account_id in enumerate(AD_ACCOUNTS, 1):
+        if not account_id:
+            continue
+        account_count += 1
+        if account_count > 1:
+            lines.append("-" * 32)
+        try:
+            s = get_account_stats(account_id, date_start, date_stop)
+            currency = s["currency"]
+            total_spend += s["spend"]
+            total_msgs  += s["messages"]
+            total_buys  += s["purchases"]
+            lines.extend([
+                f"🏷️ {s['name']}",
+                f"💸 Chi tiêu: {s['spend']:,.0f} {s['currency']}",
+                f"💬 Tin nhắn mới: {s['messages']:,}",
+                f"💰 Giá/tin nhắn: {s['cost_per_msg']:,.0f} {s['currency']}",
+                f"🛒 Lượt mua: {s['purchases']:,}",
+            ])
+        except Exception as e:
+            lines.append(f"❌ Tài khoản {i} lỗi: {e}")
+
+    if new_phone_count is not None or appointment_count is not None:
+        lines.append("-" * 32)
+        lines.append("📋 DỮ LIỆU TỪ SHEET")
+        if new_phone_count is not None:
+            lines.append(f"📞 SĐT mới hợp lệ: {new_phone_count}")
+        if appointment_count is not None:
+            lines.append(f"📅 Lịch hẹn mới: {appointment_count}")
+
+    lines.append("-" * 32)
+    avg_cost = (total_spend / total_msgs) if total_msgs > 0 else 0
+    lines.append("📌 TỔNG CỘNG")
+    lines.append(f"💸 Chi tiêu: {total_spend:,.0f} {currency}")
+    lines.append(f"💬 Tin nhắn mới: {total_msgs:,}")
+    lines.append(f"💰 Giá/tin nhắn: {avg_cost:,.0f} {currency}")
+    if new_phone_count is not None:
+        cost_per_phone = (total_spend / new_phone_count) if new_phone_count > 0 else 0
+        lines.append(f"📞 Tổng SĐT mới: {new_phone_count}")
+        lines.append(f"💵 Chi phí/SĐT mới: {cost_per_phone:,.0f} {currency}")
+    if appointment_count is not None:
+        cost_per_appt = (total_spend / appointment_count) if appointment_count > 0 else 0
+        lines.append(f"📅 Lịch hẹn mới: {appointment_count}")
+        lines.append(f"📆 Chi phí/Lịch hẹn: {cost_per_appt:,.0f} {currency}")
+    lines.append(f"🛒 Lượt mua: {total_buys:,}")
+
+    return "\n".join(lines)
+
+
+def build_report_with_sheet_data(date_start: str, date_stop: str, period_label: str) -> str:
+    """Lấy dữ liệu Sheet 1 lần (SĐT mới + Lịch hẹn), rồi build báo cáo."""
+    try:
+        rows = fetch_sheet_data()
+        new_phone_count = get_new_phone_count(rows, date_start, date_stop)
+        appointment_count = get_appointment_count(rows, date_start, date_stop)
+    except Exception as e:
+        print(f"❌ Lỗi lấy dữ liệu Sheet: {e}")
+        new_phone_count = None
+        appointment_count = None
+
+    return build_report(date_start, date_stop, period_label, new_phone_count=new_phone_count, appointment_count=appointment_count)
+
+
+def get_dates(days: int):
+    now = datetime.now(VN_TZ)
+    date_stop = (now - timedelta(days=1)).strftime("%Y-%m-%d")
+    if days == 0:
+        date_start = now.replace(day=1).strftime("%Y-%m-%d")
+    else:
+        date_start = (now - timedelta(days=days)).strftime("%Y-%m-%d")
+    return date_start, date_stop
+
+
+# ─── TELEGRAM ───────────────────────────────────────────────
+
+def send_telegram(message: str):
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    payload = {
+        "chat_id": TELEGRAM_CHAT_ID,
+        "text":    message,
+    }
+    resp = requests.post(url, json=payload, timeout=30)
+    resp.raise_for_status()
+    return resp.json()
+
+
+def send_telegram_with_buttons(message: str):
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    payload = {
+        "chat_id": TELEGRAM_CHAT_ID,
+        "text":    message,
+        "reply_markup": {
+            "inline_keyboard": [[
+                {"text": "📅 7 ngày",      "callback_data": "period_7"},
+                {"text": "📅 14 ngày",     "callback_data": "period_14"},
+                {"text": "📅 Trong tháng", "callback_data": "period_month"},
+            ]]
+        }
+    }
+    resp = requests.post(url, json=payload, timeout=30)
+    resp.raise_for_status()
+    return resp.json()
+
+
+def answer_callback(callback_query_id: str):
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/answerCallbackQuery"
+    requests.post(url, json={"callback_query_id": callback_query_id}, timeout=10)
+
+
+# ─── JOB ────────────────────────────────────────────────────
+
+def check_spending_alert():
+    alerts = []
+
+    for i, account_id in enumerate(AD_ACCOUNTS, 1):
+        if not account_id:
+            continue
+        try:
+            info     = get_account_billing(account_id)
+            name     = get_short_name(info.get("name", ""), fallback=f"Tài khoản {i}")
+            currency = info.get("currency", "VND")
+            balance  = float(info.get("balance", 0))
+
+            threshold = ACCOUNT_THRESHOLDS[i-1] if i-1 < len(ACCOUNT_THRESHOLDS) else 0
+
+            if threshold > 0:
+                remaining = threshold - balance
+                if remaining <= THRESHOLD_ALERT_AMOUNT:
+                    if remaining <= 0:
+                        alerts.append(f"🔴 {name} ĐÃ ĐẠT/VƯỢT ngưỡng thanh toán! Vui lòng kiểm tra thẻ.")
+                    else:
+                        alerts.append(f"⚠️ {name} còn {remaining:,.0f}đ đến ngưỡng thanh toán.")
+
+            bill_day = BILL_DAYS[i-1] if i-1 < len(BILL_DAYS) else 0
+            if bill_day > 0:
+                now      = datetime.now(VN_TZ)
+                tomorrow = now + timedelta(days=1)
+                if tomorrow.day == bill_day:
+                    alerts.append(f"📅 {name} còn 1 ngày nữa đến ngày lập hóa đơn, vui lòng nạp tiền/kiểm tra thẻ.")
+        except Exception as e:
+            print(f"❌ Lỗi kiểm tra billing tài khoản {i}: {e}")
+
+    if alerts:
+        msg  = "🚨 CẢNH BÁO THANH TOÁN\n"
+        msg += "-" * 32 + "\n"
+        msg += "\n".join(alerts)
+        send_telegram(msg)
+        print("✅ Đã gửi cảnh báo!")
+    else:
+        print("✅ Tất cả tài khoản còn an toàn.")
+
+
+def daily_job():
+    print(f"[{datetime.now(VN_TZ).strftime('%H:%M:%S')}] Đang lấy dữ liệu Meta Ads...")
+
+    # Gửi báo cáo chính
+    try:
+        date_start, date_stop = get_dates(1)
+        report = build_report_with_sheet_data(date_start, date_stop, "Hôm qua")
+        print("=== NỘI DUNG TIN NHẮN ===")
+        print(repr(report))
+        send_telegram_with_buttons(report)
+        print("✅ Đã gửi báo cáo lên Telegram.")
+    except Exception as e:
+        print(f"❌ Lỗi gửi báo cáo: {e}")
+        send_telegram(f"⚠️ Meta Ads Bot lỗi\n{e}")
+
+    # Cảnh báo thanh toán - chạy độc lập, không bị ảnh hưởng nếu báo cáo lỗi
+    try:
+        check_spending_alert()
+    except Exception as e:
+        print(f"❌ Lỗi check spending alert: {e}")
+
+
+# ─── LẮNG NGHE NÚT BẤM ─────────────────────────────────────
+
+def listen_callbacks():
+    print("👂 Đang lắng nghe nút bấm...")
+    url    = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getUpdates"
+    offset = None
+
+    while True:
+        try:
+            params = {"timeout": 30, "allowed_updates": ["callback_query"]}
+            if offset:
+                params["offset"] = offset
+            resp = requests.get(url, params=params, timeout=35)
+            data = resp.json()
+
+            for update in data.get("result", []):
+                offset = update["update_id"] + 1
+                cb = update.get("callback_query")
+                if not cb:
+                    continue
+
+                answer_callback(cb["id"])
+                data_val = cb.get("data", "")
+                print(f"🔔 Nhận callback: {data_val}")
+
+                if data_val == "period_7":
+                    date_start, date_stop = get_dates(7)
+                    period_label = "7 ngày qua"
+                elif data_val == "period_14":
+                    date_start, date_stop = get_dates(14)
+                    period_label = "14 ngày qua"
+                elif data_val == "period_month":
+                    date_start, date_stop = get_dates(0)
+                    period_label = "Trong tháng"
+                else:
+                    continue
+
+                report = build_report_with_sheet_data(date_start, date_stop, period_label)
+                send_telegram(report)
+                print(f"✅ Đã gửi báo cáo: {data_val}")
+
+        except Exception as e:
+            print(f"❌ Lỗi listener: {e}")
+            time.sleep(5)
+
+
+# ─── MAIN ───────────────────────────────────────────────────
+
+if __name__ == "__main__":
+    period = os.getenv("PERIOD", "daily")
+    print(f"🤖 Chạy với period: {period}")
+
+    if period == "period_7":
+        date_start, date_stop = get_dates(7)
+        report = build_report_with_sheet_data(date_start, date_stop, "7 ngày qua")
+        send_telegram(report)
+
+    elif period == "period_14":
+        date_start, date_stop = get_dates(14)
+        report = build_report_with_sheet_data(date_start, date_stop, "14 ngày qua")
+        send_telegram(report)
+
+    elif period == "period_month":
+        date_start, date_stop = get_dates(0)
+        report = build_report_with_sheet_data(date_start, date_stop, "Trong tháng")
+        send_telegram(report)
+
+    elif period == "custom_date":
+        custom_date = os.getenv("CUSTOM_DATE")
+        if not custom_date:
+            print("❌ Thiếu CUSTOM_DATE")
+            send_telegram("⚠️ Lỗi: thiếu ngày để báo cáo (CUSTOM_DATE rỗng).")
+        else:
+            report = build_report_with_sheet_data(custom_date, custom_date, "Theo ngày")
+            send_telegram(report)
+
+    else:
+        daily_job()
