@@ -64,7 +64,7 @@ BILL_DAYS = [
     int(os.getenv("BILL_DAY_4", 0) or 0),
 ]
 
-# ─── KPI CONFIG (đọc từ GitHub Secrets, fallback là số tháng 7) ──
+# ─── KPI CONFIG ──────────────────────────────────────────────
 KPI = {
     "sdt_ngay":          int(os.getenv("KPI_SDT_NGAY", 12)),
     "sdt_thang":         int(os.getenv("KPI_SDT_THANG", 361)),
@@ -189,6 +189,24 @@ def get_account_stats(account_id: str, date_start: str, date_stop: str) -> dict:
         "cost_per_msg": cost_per_msg,
         "purchases":    purchases,
     }
+
+
+def get_total_spend_month(date_stop: str) -> float:
+    """Lấy tổng chi tiêu từ đầu tháng đến date_stop."""
+    now_vn = datetime.now(VN_TZ)
+    month_start = now_vn.replace(day=1).strftime("%Y-%m-%d")
+    total = 0.0
+    for account_id in AD_ACCOUNTS:
+        if not account_id:
+            continue
+        try:
+            global AD_ACCOUNT_ID
+            AD_ACCOUNT_ID = account_id
+            insight = get_insights(month_start, date_stop)
+            total += float(insight.get("spend", 0))
+        except Exception:
+            pass
+    return total
 
 # ─── PANCAKE API ────────────────────────────────────────────
 
@@ -344,15 +362,17 @@ def get_checkin_count(ci_rows: list, date_start: str, date_stop: str) -> int:
             count += 1
     return count
 
-# ─── KPI SECTIONS ────────────────────────────────────────────
+# ─── KPI SECTIONS ─────────────────────────────────────────────
 
 def build_kpi_daily_section(
     sheet_phone_count: int,
     checkin_count: int,
     ph2l_count: int,
     total_spend: float,
+    total_spend_month: float = 0,
 ) -> list:
-    lines = ["-" * 32, "📊 KPI HÔM NAY"]
+    """KPI hôm qua đạt — so với mục tiêu ngày."""
+    lines = ["-" * 32, "📊 KPI HÔM QUA ĐẠT"]
 
     # SĐT
     sdt_t = KPI["sdt_ngay"]
@@ -378,10 +398,10 @@ def build_kpi_daily_section(
         f"({ph2l_pct:.0f}%) — {kpi_comment(ph2l_count, ph2l_t)}"
     )
 
-    # Chi phí
-    cp_sdt   = (total_spend / sheet_phone_count) if sheet_phone_count > 0 else 0
-    cp_kd    = (total_spend / checkin_count) if checkin_count > 0 else 0
-    cp_ph2l  = (total_spend / ph2l_count) if ph2l_count > 0 else 0
+    # Chi phí (dùng chi tiêu ngày)
+    cp_sdt  = (total_spend / sheet_phone_count) if sheet_phone_count > 0 else 0
+    cp_kd   = (total_spend / checkin_count) if checkin_count > 0 else 0
+    cp_ph2l = (total_spend / ph2l_count) if ph2l_count > 0 else 0
 
     lines.append(
         f"{'🟢' if cp_sdt <= KPI['cp_sdt_max'] else '🔴'} "
@@ -396,14 +416,15 @@ def build_kpi_daily_section(
         f"CP/PH2L: {cp_ph2l:,.0f}đ (max {KPI['cp_ph2l_max']:,.0f}đ)"
     )
 
-    # Ngân sách tháng
+    # Ngân sách tháng — dùng tổng chi tiêu cả tháng
     ngan_sach = KPI["ngan_sach_thang"]
+    spend_ns = total_spend_month if total_spend_month > 0 else total_spend
     if ngan_sach > 0:
-        ns_pct = (total_spend / ngan_sach * 100)
-        ns_remaining = ngan_sach - total_spend
+        ns_pct = (spend_ns / ngan_sach * 100)
+        ns_remaining = ngan_sach - spend_ns
         ns_e = "🟢" if ns_pct <= 80 else ("🟡" if ns_pct <= 95 else "🔴")
         lines.append(
-            f"{ns_e} Ngân sách tháng: đã dùng {ns_pct:.1f}% | "
+            f"{ns_e} Ngân sách tháng: {spend_ns:,.0f}đ ({ns_pct:.1f}%) | "
             f"Còn: {ns_remaining:,.0f}đ"
         )
 
@@ -418,13 +439,13 @@ def build_kpi_monthly_section(
     date_start: str,
     date_stop: str,
 ) -> list:
+    """KPI trong tháng — tiến độ + dự báo cuối tháng."""
     now = datetime.now(VN_TZ)
     days_passed = (
         datetime.strptime(date_stop, "%Y-%m-%d") -
         datetime.strptime(date_start, "%Y-%m-%d")
     ).days + 1
 
-    # Tính số ngày trong tháng hiện tại
     if now.month == 12:
         days_in_month = 31
     else:
@@ -437,7 +458,6 @@ def build_kpi_monthly_section(
             return 0
         return int(actual / days_p * days_total)
 
-    # Mục tiêu tích lũy đến hôm nay (theo tỷ lệ ngày đã qua)
     def target_to_date(monthly_target):
         return monthly_target * days_passed / days_in_month if days_in_month > 0 else 0
 
@@ -474,7 +494,6 @@ def build_kpi_monthly_section(
         ns_pct = (total_spend / ngan_sach * 100)
         ns_remaining = ngan_sach - total_spend
         ns_e = "🟢" if ns_pct <= 80 else ("🟡" if ns_pct <= 95 else "🔴")
-        # Dự báo chi tiêu cuối tháng
         ns_fc = forecast(total_spend, days_passed, days_in_month)
         lines.append(
             f"{ns_e} Ngân sách: {total_spend:,.0f}/{ngan_sach:,.0f}đ "
@@ -488,34 +507,29 @@ def check_kpi_cost_alert(
     sheet_phone_count: int,
     checkin_count: int,
     ph2l_count: int,
-    total_spend: float,
+    total_spend_month: float,
 ):
+    """Gửi cảnh báo riêng nếu chi phí vượt ngưỡng KPI."""
     alerts = []
 
-    cp_sdt  = (total_spend / sheet_phone_count) if sheet_phone_count > 0 else 0
-    cp_kd   = (total_spend / checkin_count) if checkin_count > 0 else 0
-    cp_ph2l = (total_spend / ph2l_count) if ph2l_count > 0 else 0
+    cp_sdt  = (total_spend_month / sheet_phone_count) if sheet_phone_count > 0 else 0
+    cp_kd   = (total_spend_month / checkin_count) if checkin_count > 0 else 0
+    cp_ph2l = (total_spend_month / ph2l_count) if ph2l_count > 0 else 0
 
     if sheet_phone_count > 0 and cp_sdt > KPI["cp_sdt_max"]:
-        alerts.append(
-            f"📞 CP/SĐT: {cp_sdt:,.0f}đ > ngưỡng {KPI['cp_sdt_max']:,.0f}đ"
-        )
+        alerts.append(f"📞 CP/SĐT: {cp_sdt:,.0f}đ > ngưỡng {KPI['cp_sdt_max']:,.0f}đ")
     if checkin_count > 0 and cp_kd > KPI["cp_khach_den_max"]:
-        alerts.append(
-            f"✅ CP/Khách đến: {cp_kd:,.0f}đ > ngưỡng {KPI['cp_khach_den_max']:,.0f}đ"
-        )
+        alerts.append(f"✅ CP/Khách đến: {cp_kd:,.0f}đ > ngưỡng {KPI['cp_khach_den_max']:,.0f}đ")
     if ph2l_count > 0 and cp_ph2l > KPI["cp_ph2l_max"]:
-        alerts.append(
-            f"💬 CP/PH2L: {cp_ph2l:,.0f}đ > ngưỡng {KPI['cp_ph2l_max']:,.0f}đ"
-        )
+        alerts.append(f"💬 CP/PH2L: {cp_ph2l:,.0f}đ > ngưỡng {KPI['cp_ph2l_max']:,.0f}đ")
 
     ngan_sach = KPI["ngan_sach_thang"]
     if ngan_sach > 0:
-        ns_pct = total_spend / ngan_sach * 100
+        ns_pct = total_spend_month / ngan_sach * 100
         if ns_pct >= 90:
             alerts.append(
                 f"💸 Ngân sách: đã dùng {ns_pct:.1f}% "
-                f"({total_spend:,.0f}/{ngan_sach:,.0f}đ)"
+                f"({total_spend_month:,.0f}/{ngan_sach:,.0f}đ)"
             )
 
     if alerts:
@@ -537,8 +551,9 @@ def build_report(
     appointment_count=None,
     ph2l_count=None,
     checkin_count=None,
-    total_spend_override=None,
     show_kpi=False,
+    kpi_is_monthly=False,
+    total_spend_month=0,
 ) -> str:
     now = datetime.now(VN_TZ)
 
@@ -589,10 +604,6 @@ def build_report(
         except Exception as e:
             lines.append(f"❌ Tài khoản {i} lỗi: {e}")
 
-    # Dùng total_spend_override nếu có (tránh gọi API 2 lần)
-    if total_spend_override is not None:
-        total_spend = total_spend_override
-
     # Pancake
     total_pancake_phones = 0
     if pancake_pages_data is not None:
@@ -623,20 +634,7 @@ def build_report(
         if ph2l_count is not None:
             lines.append(f"💬 PH2L: {ph2l_count}")
 
-    # KPI
-    if show_kpi and all(x is not None for x in [sheet_phone_count, checkin_count, ph2l_count]):
-        is_monthly = date_start != date_stop
-        if is_monthly:
-            lines += build_kpi_monthly_section(
-                sheet_phone_count, checkin_count, ph2l_count,
-                total_spend, date_start, date_stop,
-            )
-        else:
-            lines += build_kpi_daily_section(
-                sheet_phone_count, checkin_count, ph2l_count, total_spend,
-            )
-
-    # Tổng cộng
+    # Tổng cộng — luôn hiện trước KPI
     lines.append("-" * 32)
     avg_cost = (total_spend / total_msgs) if total_msgs > 0 else 0
     avg_cost_str = f"{avg_cost:,.0f} {currency}" if total_msgs > 0 else "N/A"
@@ -673,11 +671,28 @@ def build_report(
         )
     lines.append(f"🛒 Lượt mua: {total_buys:,}")
 
+    # KPI — luôn hiện SAU tổng cộng
+    if show_kpi and all(x is not None for x in [sheet_phone_count, checkin_count, ph2l_count]):
+        if kpi_is_monthly:
+            lines += build_kpi_monthly_section(
+                sheet_phone_count, checkin_count, ph2l_count,
+                total_spend, date_start, date_stop,
+            )
+        else:
+            lines += build_kpi_daily_section(
+                sheet_phone_count, checkin_count, ph2l_count,
+                total_spend, total_spend_month,
+            )
+
     return "\n".join(lines)
 
 
 def build_report_with_all_data(
-    date_start: str, date_stop: str, period_label: str, show_kpi: bool = False
+    date_start: str,
+    date_stop: str,
+    period_label: str,
+    show_kpi: bool = False,
+    kpi_is_monthly: bool = False,
 ) -> str:
     # Pancake
     try:
@@ -703,6 +718,11 @@ def build_report_with_all_data(
         ph2l_count = None
         checkin_count = None
 
+    # Lấy chi tiêu tháng nếu cần KPI daily
+    total_spend_month = 0
+    if show_kpi and not kpi_is_monthly:
+        total_spend_month = get_total_spend_month(date_stop)
+
     return build_report(
         date_start, date_stop, period_label,
         pancake_pages_data=pancake_pages_data,
@@ -711,6 +731,8 @@ def build_report_with_all_data(
         ph2l_count=ph2l_count,
         checkin_count=checkin_count,
         show_kpi=show_kpi,
+        kpi_is_monthly=kpi_is_monthly,
+        total_spend_month=total_spend_month,
     )
 
 
@@ -809,7 +831,7 @@ def daily_job():
     try:
         date_start, date_stop = get_dates(1)
 
-        # Lấy dữ liệu Sheet
+        # Sheet
         sheet_data = fetch_sheet_data()
         rows = sheet_data["data"]
         livechat_rows = sheet_data["livechat"]
@@ -819,10 +841,13 @@ def daily_job():
         ph2l_count = get_ph2l_count(livechat_rows, date_start, date_stop)
         checkin_count = get_checkin_count(ci_rows, date_start, date_stop)
 
-        # Lấy dữ liệu Pancake
+        # Pancake
         pancake_pages_data = get_pancake_pages_data(date_start, date_stop)
 
-        # Build báo cáo (có KPI)
+        # Chi tiêu tháng (cho KPI ngân sách)
+        total_spend_month = get_total_spend_month(date_stop)
+
+        # Build báo cáo
         report = build_report(
             date_start, date_stop, "Hôm qua",
             pancake_pages_data=pancake_pages_data,
@@ -831,29 +856,20 @@ def daily_job():
             ph2l_count=ph2l_count,
             checkin_count=checkin_count,
             show_kpi=True,
+            kpi_is_monthly=False,
+            total_spend_month=total_spend_month,
         )
         print("=== NỘI DUNG TIN NHẮN ===")
         print(repr(report))
         send_telegram_with_buttons(report)
         print("✅ Đã gửi báo cáo lên Telegram.")
 
-        # Cảnh báo KPI chi phí (dùng lại total_spend từ build_report)
-        total_spend = 0.0
-        for account_id in AD_ACCOUNTS:
-            if not account_id:
-                continue
-            try:
-                global AD_ACCOUNT_ID
-                AD_ACCOUNT_ID = account_id
-                insight = get_insights(date_start, date_stop)
-                total_spend += float(insight.get("spend", 0))
-            except Exception:
-                pass
+        # Cảnh báo KPI chi phí
         check_kpi_cost_alert(
             sheet_phone_count or 0,
             checkin_count or 0,
             ph2l_count or 0,
-            total_spend,
+            total_spend_month,
         )
 
     except Exception as e:
@@ -895,19 +911,24 @@ def listen_callbacks():
                     date_start, date_stop = get_dates(7)
                     period_label = "7 ngày qua"
                     show_kpi = False
+                    kpi_is_monthly = False
                 elif data_val == "period_14":
                     date_start, date_stop = get_dates(14)
                     period_label = "14 ngày qua"
                     show_kpi = False
+                    kpi_is_monthly = False
                 elif data_val == "period_month":
                     date_start, date_stop = get_dates(0)
                     period_label = "Trong tháng"
                     show_kpi = True
+                    kpi_is_monthly = True
                 else:
                     continue
 
                 report = build_report_with_all_data(
-                    date_start, date_stop, period_label, show_kpi=show_kpi
+                    date_start, date_stop, period_label,
+                    show_kpi=show_kpi,
+                    kpi_is_monthly=kpi_is_monthly,
                 )
                 send_telegram(report)
                 print(f"✅ Đã gửi báo cáo: {data_val}")
@@ -925,17 +946,26 @@ if __name__ == "__main__":
 
     if period == "period_7":
         date_start, date_stop = get_dates(7)
-        report = build_report_with_all_data(date_start, date_stop, "7 ngày qua", show_kpi=False)
+        report = build_report_with_all_data(
+            date_start, date_stop, "7 ngày qua",
+            show_kpi=False, kpi_is_monthly=False,
+        )
         send_telegram(report)
 
     elif period == "period_14":
         date_start, date_stop = get_dates(14)
-        report = build_report_with_all_data(date_start, date_stop, "14 ngày qua", show_kpi=False)
+        report = build_report_with_all_data(
+            date_start, date_stop, "14 ngày qua",
+            show_kpi=False, kpi_is_monthly=False,
+        )
         send_telegram(report)
 
     elif period == "period_month":
         date_start, date_stop = get_dates(0)
-        report = build_report_with_all_data(date_start, date_stop, "Trong tháng", show_kpi=True)
+        report = build_report_with_all_data(
+            date_start, date_stop, "Trong tháng",
+            show_kpi=True, kpi_is_monthly=True,
+        )
         send_telegram(report)
 
     elif period == "custom_date":
@@ -944,7 +974,10 @@ if __name__ == "__main__":
             print("❌ Thiếu CUSTOM_DATE")
             send_telegram("⚠️ Lỗi: thiếu ngày để báo cáo (CUSTOM_DATE rỗng).")
         else:
-            report = build_report_with_all_data(custom_date, custom_date, "Theo ngày", show_kpi=True)
+            report = build_report_with_all_data(
+                custom_date, custom_date, "Theo ngày",
+                show_kpi=True, kpi_is_monthly=False,
+            )
             send_telegram(report)
 
     elif period == "date_range":
@@ -961,7 +994,10 @@ if __name__ == "__main__":
                 f" – "
                 f"{datetime.strptime(date_stop, '%Y-%m-%d').strftime('%d/%m/%Y')}"
             )
-            report = build_report_with_all_data(date_start, date_stop, label, show_kpi=False)
+            report = build_report_with_all_data(
+                date_start, date_stop, label,
+                show_kpi=True, kpi_is_monthly=True,
+            )
             send_telegram(report)
 
     else:
