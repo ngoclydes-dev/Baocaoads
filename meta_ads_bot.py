@@ -290,10 +290,6 @@ def get_ph2l_count(livechat_rows: list, date_start: str, date_stop: str) -> int:
 
 
 def get_checkin_count(ci_rows: list, date_start: str, date_stop: str) -> int:
-    """
-    Đếm số khách đã check-in (checked=True) trong khoảng [date_start, date_stop].
-    Ngày dạng dd/MM/yyyy từ Apps Script.
-    """
     count = 0
     for row in ci_rows:
         ngay_raw = str(row.get("ngay", "") or "").strip()
@@ -353,11 +349,12 @@ def build_report(
             total_spend += s["spend"]
             total_msgs  += s["messages"]
             total_buys  += s["purchases"]
+            short_name = get_short_name(s["name"], fallback=f"Tài khoản {i}")
+            cost_per_msg_str = f"{s['cost_per_msg']:,.0f} {s['currency']}" if s["messages"] > 0 else "N/A"
             lines.extend([
-                f"🏷️ {s['name']}",
+                f"🏷️ {short_name}",
                 f"💸 Chi tiêu: {s['spend']:,.0f} {s['currency']}",
-                f"💬 Tin nhắn mới: {s['messages']:,}",
-                f"💰 Giá/tin nhắn: {s['cost_per_msg']:,.0f} {s['currency']}",
+                f"💬 Mess: {s['messages']:,} | 💰 CP/Mess: {cost_per_msg_str}",
                 f"🛒 Lượt mua: {s['purchases']:,}",
             ])
         except Exception as e:
@@ -368,9 +365,17 @@ def build_report(
     if pancake_pages_data is not None:
         lines.append("-" * 32)
         lines.append("📱 PANCAKE - SĐT MỚI")
+        page_lines = []
         for page_name, count in pancake_pages_data:
             total_pancake_phones += count
-            lines.append(f"🏷️ {page_name}: {count}")
+            short = page_name.replace("Love + Rosa ", "")
+            page_lines.append(f"{short}: {count}")
+        for pl in page_lines[:2]:
+            lines.append(pl)
+        if len(page_lines) >= 4:
+            lines.append(f"{page_lines[2]} | {page_lines[3]}")
+        elif len(page_lines) == 3:
+            lines.append(page_lines[2])
 
     # Sheet
     if any(x is not None for x in [sheet_phone_count, appointment_count, checkin_count, ph2l_count]):
@@ -388,32 +393,30 @@ def build_report(
     # Tổng cộng
     lines.append("-" * 32)
     avg_cost = (total_spend / total_msgs) if total_msgs > 0 else 0
+    avg_cost_str = f"{avg_cost:,.0f} {currency}" if total_msgs > 0 else "N/A"
     lines.append("📌 TỔNG CỘNG")
-    lines.append(f"💸 Chi tiêu: {total_spend:,.0f} {currency}")
-    lines.append(f"💬 Tin nhắn mới: {total_msgs:,}")
-    lines.append(f"💰 Giá/tin nhắn: {avg_cost:,.0f} {currency}")
-    if pancake_pages_data is not None:
-        lines.append(f"📞 Tổng SĐT mới (Pancake): {total_pancake_phones}")
+    lines.append(f"💸 Chi tiêu: {total_spend:,.0f} {currency} | 💬 Mess: {total_msgs:,}")
+    lines.append(f"💰 CP/Mess: {avg_cost_str}")
+    if pancake_pages_data is not None and sheet_phone_count is not None:
+        lines.append(f"📞 SĐT: Pancake {total_pancake_phones} | SĐT hợp lệ (Sheet): {sheet_phone_count}")
+    elif pancake_pages_data is not None:
+        lines.append(f"📞 SĐT: Pancake {total_pancake_phones}")
+    elif sheet_phone_count is not None:
+        lines.append(f"📞 SĐT hợp lệ (Sheet): {sheet_phone_count}")
     if sheet_phone_count is not None:
         cost_per_sheet = (total_spend / sheet_phone_count) if sheet_phone_count > 0 else 0
-        lines.append(f"📞 Tổng SĐT hợp lệ (Sheet): {sheet_phone_count}")
-        lines.append(f"💵 Chi phí/SĐT hợp lệ: {cost_per_sheet:,.0f} {currency}")
+        lines.append(f"💵 CP/SĐT hợp lệ (Sheet): {cost_per_sheet:,.0f} {currency}")
+    if appointment_count is not None:
+        cost_per_appt = (total_spend / appointment_count) if appointment_count > 0 else 0
+        lines.append(f"📅 Lịch hẹn: {appointment_count} | CP/Lịch: {cost_per_appt:,.0f} {currency}")
+    if checkin_count is not None:
+        cost_per_checkin = (total_spend / checkin_count) if checkin_count > 0 else 0
+        checkin_ratio = (checkin_count / appointment_count * 100) if appointment_count and appointment_count > 0 else 0
+        lines.append(f"✅ KH đến: {checkin_count} ({checkin_ratio:.1f}%) | CP/KH đến: {cost_per_checkin:,.0f} {currency}")
     if ph2l_count is not None:
         ph2l_ratio = (ph2l_count / total_msgs * 100) if total_msgs > 0 else 0
         cost_per_ph2l = (total_spend / ph2l_count) if ph2l_count > 0 else 0
-        lines.append(f"💬 Tổng PH2L: {ph2l_count}")
-        lines.append(f"📊 Tỷ lệ PH2L/Tin nhắn: {ph2l_ratio:.1f}%")
-        lines.append(f"💰 Chi phí/tin PH2L: {cost_per_ph2l:,.0f} {currency}")
-    if appointment_count is not None:
-        cost_per_appt = (total_spend / appointment_count) if appointment_count > 0 else 0
-        lines.append(f"📅 Lịch hẹn mới: {appointment_count}")
-        lines.append(f"📆 Chi phí/Lịch hẹn: {cost_per_appt:,.0f} {currency}")
-    if checkin_count is not None:
-        cost_per_checkin = (total_spend / checkin_count) if checkin_count > 0 else 0
-        lines.append(f"✅ Khách đến: {checkin_count}")
-        lines.append(f"💰 Chi phí/Khách đến: {cost_per_checkin:,.0f} {currency}")
-        lines.append(f"💰 Chi phí/Khách đến: {cost_per_checkin:,.0f} {currency}")
-
+        lines.append(f"💬 PH2L: {ph2l_count} ({ph2l_ratio:.1f}%) | {cost_per_ph2l:,.0f} VND/tin")
     lines.append(f"🛒 Lượt mua: {total_buys:,}")
 
     return "\n".join(lines)
