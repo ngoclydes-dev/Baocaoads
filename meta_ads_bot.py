@@ -275,10 +275,9 @@ def get_new_phone_count_sheet(rows: list, date_start: str, date_stop: str) -> in
 
 
 def get_ph2l_count(livechat_rows: list, date_start: str, date_stop: str) -> int:
-    """Đếm PH2L từ cột 'Ghi chú' trong sheet Livechat."""
     count = 0
     for row in livechat_rows:
-        ngay_raw = str(row.get("NGÀY", "") or row.get("NGAY", "") or "").strip()
+        ngay_raw = str(row.get("NGAY", "") or row.get("NGÀY", "") or "").strip()
         if not ngay_raw:
             continue
         vn_date = vn_date_from_ddmmyyyy(ngay_raw)
