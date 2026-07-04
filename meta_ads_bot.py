@@ -369,6 +369,7 @@ def build_report(
     lines.append(f"💸 Chi tiêu: {total_spend:,.0f} {currency}")
     lines.append(f"💬 Tin nhắn mới: {total_msgs:,}")
     lines.append(f"💰 Giá/tin nhắn: {avg_cost:,.0f} {currency}")
+    lines.append(f"🛒 Lượt mua: {total_buys:,}")
     if pancake_pages_data is not None:
         lines.append(f"📞 Tổng SĐT mới (Pancake): {total_pancake_phones}")
     if sheet_phone_count is not None:
@@ -381,10 +382,11 @@ def build_report(
         lines.append(f"📆 Chi phí/Lịch hẹn: {cost_per_appt:,.0f} {currency}")
     if ph2l_count is not None:
         ph2l_ratio = (ph2l_count / total_msgs * 100) if total_msgs > 0 else 0
+        cost_per_ph2l = (total_spend / ph2l_count) if ph2l_count > 0 else 0
         lines.append(f"💬 Tổng PH2L: {ph2l_count}")
         lines.append(f"📊 Tỷ lệ PH2L/Tin nhắn: {ph2l_ratio:.1f}%")
-    lines.append(f"🛒 Lượt mua: {total_buys:,}")
-
+        lines.append(f"💰 Chi phí/tin PH2L: {cost_per_ph2l:,.0f} {currency}")
+    
     return "\n".join(lines)
 
 
