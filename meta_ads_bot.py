@@ -176,16 +176,19 @@ def normalize_phone(raw_phone) -> str:
     return s
 
 
-def fetch_sheet_data() -> list:
-    """Gọi Apps Script Web App, trả về list các dòng dữ liệu thô."""
+def fetch_sheet_data() -> dict:
+    """Gọi Apps Script Web App, trả về dict gồm data và livechat."""
     if not APPS_SCRIPT_URL:
         print("❌ Thiếu APPS_SCRIPT_URL")
-        return []
+        return {"data": [], "livechat": []}
 
     resp = requests.get(APPS_SCRIPT_URL, timeout=30)
     resp.raise_for_status()
     payload = resp.json()
-    return payload.get("data", [])
+    return {
+        "data": payload.get("data", []),
+        "livechat": payload.get("livechat", []),
+    }
 
 
 def get_appointment_count(rows: list, date_start: str, date_stop: str) -> int:
@@ -237,10 +240,37 @@ def get_new_phone_count(rows: list, date_start: str, date_stop: str) -> int:
             seen_phones.add(phone)
 
     return len(seen_phones)
+    
+def get_ph2l_count(livechat_rows: list, date_start: str, date_stop: str) -> int:
+    """
+    Đếm số dòng có cột 'Ghi chú' = 'PH2L' trong khoảng [date_start, date_stop].
+    Cột ngày (B) trong Livechat có dạng dd/MM/yyyy (khác với DATA dùng ISO UTC).
+    """
+    count = 0
+    for row in livechat_rows:
+        ngay_raw = str(row.get("NGÀY", "") or "").strip()
+        if not ngay_raw:
+            continue
+
+        # Parse ngày dạng dd/MM/yyyy
+        try:
+            dt = datetime.strptime(ngay_raw, "%d/%m/%Y")
+            vn_date = dt.strftime("%Y-%m-%d")
+        except Exception:
+            continue
+
+        if vn_date < date_start or vn_date > date_stop:
+            continue
+
+        ghi_chu = (row.get("Ghi chú", "") or "").strip()
+        if ghi_chu == "PH2L":
+            count += 1
+
+    return count
 
 # ─── BUILD REPORT ───────────────────────────────────────────
 
-def build_report(date_start: str, date_stop: str, period_label: str, new_phone_count=None, appointment_count=None) -> str:
+def build_report(date_start: str, date_stop: str, period_label: str, pancake_pages_data=None, sheet_phone_count=None, appointment_count=None, ph2l_count=None,) -> str:
     now = datetime.now(VN_TZ)
 
     if date_start == date_stop:
@@ -309,22 +339,43 @@ def build_report(date_start: str, date_stop: str, period_label: str, new_phone_c
         lines.append(f"📅 Lịch hẹn mới: {appointment_count}")
         lines.append(f"📆 Chi phí/Lịch hẹn: {cost_per_appt:,.0f} {currency}")
     lines.append(f"🛒 Lượt mua: {total_buys:,}")
-
+    if ph2l_count is not None:
+        ph2l_ratio = (ph2l_count / total_msgs * 100) if total_msgs > 0 else 0
+        lines.append(f"💬 Tổng PH2L: {ph2l_count}")
+        lines.append(f"📊 Tỷ lệ PH2L/Tin nhắn: {ph2l_ratio:.1f}%")
     return "\n".join(lines)
 
 
-def build_report_with_sheet_data(date_start: str, date_stop: str, period_label: str) -> str:
-    """Lấy dữ liệu Sheet 1 lần (SĐT mới + Lịch hẹn), rồi build báo cáo."""
+def build_report_with_all_data(date_start: str, date_stop: str, period_label: str) -> str:
+    """Lấy dữ liệu Pancake + Sheet (DATA + Livechat), rồi build báo cáo."""
+    # Pancake
     try:
-        rows = fetch_sheet_data()
-        new_phone_count = get_new_phone_count(rows, date_start, date_stop)
-        appointment_count = get_appointment_count(rows, date_start, date_stop)
+        pancake_pages_data = get_pancake_pages_data(date_start, date_stop)
     except Exception as e:
-        print(f"❌ Lỗi lấy dữ liệu Sheet: {e}")
-        new_phone_count = None
-        appointment_count = None
+        print(f"❌ Lỗi Pancake: {e}")
+        pancake_pages_data = None
 
-    return build_report(date_start, date_stop, period_label, new_phone_count=new_phone_count, appointment_count=appointment_count)
+    # Sheet DATA + Livechat
+    try:
+        sheet_data = fetch_sheet_data()
+        rows = sheet_data["data"]
+        livechat_rows = sheet_data["livechat"]
+        sheet_phone_count = get_new_phone_count_sheet(rows, date_start, date_stop)
+        appointment_count = get_appointment_count(rows, date_start, date_stop)
+        ph2l_count = get_ph2l_count(livechat_rows, date_start, date_stop)
+    except Exception as e:
+        print(f"❌ Lỗi Sheet: {e}")
+        sheet_phone_count = None
+        appointment_count = None
+        ph2l_count = None
+
+    return build_report(
+        date_start, date_stop, period_label,
+        pancake_pages_data=pancake_pages_data,
+        sheet_phone_count=sheet_phone_count,
+        appointment_count=appointment_count,
+        ph2l_count=ph2l_count,
+    )
 
 
 def get_dates(days: int):
