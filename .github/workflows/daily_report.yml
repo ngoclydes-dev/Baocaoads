@@ -48,4 +48,14 @@ jobs:
           PERIOD: ${{ github.event.inputs.period || 'daily' }}
           CUSTOM_DATE: ${{ github.event.inputs.custom_date || '' }}
           DATE_RANGE: ${{ github.event.inputs.date_range || '' }}
+          KPI_SDT_NGAY: ${{ secrets.KPI_SDT_NGAY }}
+          KPI_SDT_THANG: ${{ secrets.KPI_SDT_THANG }}
+          KPI_CP_SDT_MAX: ${{ secrets.KPI_CP_SDT_MAX }}
+          KPI_KHACH_DEN_NGAY: ${{ secrets.KPI_KHACH_DEN_NGAY }}
+          KPI_KHACH_DEN_THANG: ${{ secrets.KPI_KHACH_DEN_THANG }}
+          KPI_CP_KHACH_DEN_MAX: ${{ secrets.KPI_CP_KHACH_DEN_MAX }}
+          KPI_PH2L_NGAY: ${{ secrets.KPI_PH2L_NGAY }}
+          KPI_PH2L_THANG: ${{ secrets.KPI_PH2L_THANG }}
+          KPI_CP_PH2L_MAX: ${{ secrets.KPI_CP_PH2L_MAX }}
+          KPI_NGAN_SACH_THANG: ${{ secrets.KPI_NGAN_SACH_THANG }}
         run: python meta_ads_bot.py
