@@ -10,6 +10,7 @@ Meta Ads → Telegram Daily Report Bot v2
 - SĐT mới từ Pancake (theo từng page)
 - Lịch hẹn & SĐT hợp lệ từ Google Sheet DATA
 - PH2L từ Google Sheet Livechat
+- Khách đến từ Google Sheet CI
 """
 
 import os
@@ -226,7 +227,7 @@ def normalize_phone(raw_phone) -> str:
 def fetch_sheet_data() -> dict:
     if not APPS_SCRIPT_URL:
         print("❌ Thiếu APPS_SCRIPT_URL")
-        return {"data": [], "livechat": []}
+        return {"data": [], "livechat": [], "ci": []}
 
     resp = requests.get(APPS_SCRIPT_URL, timeout=30)
     resp.raise_for_status()
@@ -234,6 +235,7 @@ def fetch_sheet_data() -> dict:
     return {
         "data": payload.get("data", []),
         "livechat": payload.get("livechat", []),
+        "ci": payload.get("ci", []),
     }
 
 
@@ -286,6 +288,24 @@ def get_ph2l_count(livechat_rows: list, date_start: str, date_stop: str) -> int:
             count += 1
     return count
 
+
+def get_checkin_count(ci_rows: list, date_start: str, date_stop: str) -> int:
+    """
+    Đếm số khách đã check-in (checked=True) trong khoảng [date_start, date_stop].
+    Ngày dạng dd/MM/yyyy từ Apps Script.
+    """
+    count = 0
+    for row in ci_rows:
+        ngay_raw = str(row.get("ngay", "") or "").strip()
+        if not ngay_raw:
+            continue
+        vn_date = vn_date_from_ddmmyyyy(ngay_raw)
+        if not vn_date or vn_date < date_start or vn_date > date_stop:
+            continue
+        if row.get("checked") is True:
+            count += 1
+    return count
+
 # ─── BUILD REPORT ───────────────────────────────────────────
 
 def build_report(
@@ -296,6 +316,7 @@ def build_report(
     sheet_phone_count=None,
     appointment_count=None,
     ph2l_count=None,
+    checkin_count=None,
 ) -> str:
     now = datetime.now(VN_TZ)
 
@@ -342,7 +363,7 @@ def build_report(
         except Exception as e:
             lines.append(f"❌ Tài khoản {i} lỗi: {e}")
 
-    # Pancake - SĐT theo từng page
+    # Pancake
     total_pancake_phones = 0
     if pancake_pages_data is not None:
         lines.append("-" * 32)
@@ -351,14 +372,16 @@ def build_report(
             total_pancake_phones += count
             lines.append(f"🏷️ {page_name}: {count}")
 
-    # Sheet - Lịch hẹn & SĐT hợp lệ & PH2L
-    if sheet_phone_count is not None or appointment_count is not None or ph2l_count is not None:
+    # Sheet
+    if any(x is not None for x in [sheet_phone_count, appointment_count, checkin_count, ph2l_count]):
         lines.append("-" * 32)
         lines.append("📋 DỮ LIỆU TỪ SHEET")
         if sheet_phone_count is not None:
             lines.append(f"📞 SĐT mới hợp lệ: {sheet_phone_count}")
         if appointment_count is not None:
             lines.append(f"📅 Lịch hẹn mới: {appointment_count}")
+        if checkin_count is not None:
+            lines.append(f"✅ Khách đến: {checkin_count}")
         if ph2l_count is not None:
             lines.append(f"💬 PH2L: {ph2l_count}")
 
@@ -369,7 +392,6 @@ def build_report(
     lines.append(f"💸 Chi tiêu: {total_spend:,.0f} {currency}")
     lines.append(f"💬 Tin nhắn mới: {total_msgs:,}")
     lines.append(f"💰 Giá/tin nhắn: {avg_cost:,.0f} {currency}")
-    lines.append(f"🛒 Lượt mua: {total_buys:,}")
     if pancake_pages_data is not None:
         lines.append(f"📞 Tổng SĐT mới (Pancake): {total_pancake_phones}")
     if sheet_phone_count is not None:
@@ -380,13 +402,18 @@ def build_report(
         cost_per_appt = (total_spend / appointment_count) if appointment_count > 0 else 0
         lines.append(f"📅 Lịch hẹn mới: {appointment_count}")
         lines.append(f"📆 Chi phí/Lịch hẹn: {cost_per_appt:,.0f} {currency}")
+    if checkin_count is not None:
+        cost_per_checkin = (total_spend / checkin_count) if checkin_count > 0 else 0
+        lines.append(f"✅ Khách đến: {checkin_count}")
+        lines.append(f"💰 Chi phí/Khách đến: {cost_per_checkin:,.0f} {currency}")
     if ph2l_count is not None:
         ph2l_ratio = (ph2l_count / total_msgs * 100) if total_msgs > 0 else 0
         cost_per_ph2l = (total_spend / ph2l_count) if ph2l_count > 0 else 0
         lines.append(f"💬 Tổng PH2L: {ph2l_count}")
         lines.append(f"📊 Tỷ lệ PH2L/Tin nhắn: {ph2l_ratio:.1f}%")
         lines.append(f"💰 Chi phí/tin PH2L: {cost_per_ph2l:,.0f} {currency}")
-    
+    lines.append(f"🛒 Lượt mua: {total_buys:,}")
+
     return "\n".join(lines)
 
 
@@ -398,19 +425,22 @@ def build_report_with_all_data(date_start: str, date_stop: str, period_label: st
         print(f"❌ Lỗi Pancake: {e}")
         pancake_pages_data = None
 
-    # Sheet DATA + Livechat
+    # Sheet DATA + Livechat + CI
     try:
         sheet_data = fetch_sheet_data()
         rows = sheet_data["data"]
         livechat_rows = sheet_data["livechat"]
+        ci_rows = sheet_data["ci"]
         sheet_phone_count = get_new_phone_count_sheet(rows, date_start, date_stop)
         appointment_count = get_appointment_count(rows, date_start, date_stop)
         ph2l_count = get_ph2l_count(livechat_rows, date_start, date_stop)
+        checkin_count = get_checkin_count(ci_rows, date_start, date_stop)
     except Exception as e:
         print(f"❌ Lỗi Sheet: {e}")
         sheet_phone_count = None
         appointment_count = None
         ph2l_count = None
+        checkin_count = None
 
     return build_report(
         date_start, date_stop, period_label,
@@ -418,6 +448,7 @@ def build_report_with_all_data(date_start: str, date_stop: str, period_label: st
         sheet_phone_count=sheet_phone_count,
         appointment_count=appointment_count,
         ph2l_count=ph2l_count,
+        checkin_count=checkin_count,
     )
 
 
