@@ -10,6 +10,9 @@ on:
       custom_date:
         description: 'Chỉ điền khi period = custom_date. Định dạng: YYYY-MM-DD'
         required: false
+      date_range:
+        description: 'Khoang ngay, dang YYYY-MM-DD|YYYY-MM-DD. Chi dien khi period = date_range'
+        required: false
         default: ''
 
 jobs:
@@ -44,4 +47,5 @@ jobs:
           REPORT_TIME: "07:30"
           PERIOD: ${{ github.event.inputs.period || 'daily' }}
           CUSTOM_DATE: ${{ github.event.inputs.custom_date || '' }}
+          DATE_RANGE: ${{ github.event.inputs.date_range || '' }}
         run: python meta_ads_bot.py
