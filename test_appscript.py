@@ -4,18 +4,21 @@ import json
 
 APPS_SCRIPT_URL = os.getenv("APPS_SCRIPT_URL")
 
-# Goi truc tiep Apps Script de xem raw headers
-# Them endpoint debug vao Apps Script tam thoi
 resp = requests.get(APPS_SCRIPT_URL, timeout=30)
 data = resp.json()
 
-livechat = data.get("livechat", [])
-if livechat:
-    print("=== TAT CA KEYS TRONG 1 DONG LIVECHAT ===")
-    print(json.dumps(list(livechat[5].keys()), ensure_ascii=False, indent=2))
-    print()
-    print("=== DONG CO PH2L ===")
-    for i, row in enumerate(livechat):
-        if row.get("Ghi chu") == "PH2L" or row.get("Ghi chú") == "PH2L":
-            print(f"Dong {i+1}:", json.dumps(row, ensure_ascii=False))
-            break
+print("Keys:", list(data.keys()))
+print("DATA rows:", len(data.get("data", [])))
+print("LIVECHAT rows:", len(data.get("livechat", [])))
+print("CI rows:", len(data.get("ci", [])))
+
+ci = data.get("ci", [])
+print("\n=== 10 DONG CI DAU TIEN ===")
+for i, row in enumerate(ci[:10]):
+    print(f"Dong {i+1}:", json.dumps(row, ensure_ascii=False))
+
+print("\n=== DONG CO CHECKED=TRUE ===")
+checked = [r for r in ci if r.get("checked") == True]
+print(f"Tong checked: {len(checked)}")
+for r in checked[:5]:
+    print(json.dumps(r, ensure_ascii=False))
