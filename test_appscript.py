@@ -1,32 +1,21 @@
 import os
 import requests
+import json
 
 APPS_SCRIPT_URL = os.getenv("APPS_SCRIPT_URL")
 
-print("=== KIỂM TRA APPS_SCRIPT_URL ===")
-print(f"Giá trị URL: {APPS_SCRIPT_URL}")
-print(f"Độ dài chuỗi: {len(APPS_SCRIPT_URL) if APPS_SCRIPT_URL else 0}")
-print()
+resp = requests.get(APPS_SCRIPT_URL, timeout=30)
+data = resp.json()
 
-if not APPS_SCRIPT_URL:
-    print("❌ APPS_SCRIPT_URL đang RỖNG - secret chưa được set hoặc tên sai")
+print("=== KEYS TRONG RESPONSE ===")
+print(list(data.keys()))
+
+print("\n=== DATA rows:", len(data.get("data", [])))
+print("=== LIVECHAT rows:", len(data.get("livechat", [])))
+
+livechat = data.get("livechat", [])
+if livechat:
+    print("\n=== MAU LIVECHAT DONG DAU ===")
+    print(json.dumps(livechat[0], indent=2, ensure_ascii=False))
 else:
-    try:
-        resp = requests.get(APPS_SCRIPT_URL, timeout=30)
-        print(f"Status code: {resp.status_code}")
-        print(f"Content-Type: {resp.headers.get('Content-Type')}")
-        print()
-        print("=== RESPONSE TEXT (1000 ký tự đầu) ===")
-        print(resp.text[:1000])
-        print()
-
-        try:
-            data = resp.json()
-            print("=== PARSE JSON THÀNH CÔNG ===")
-            print("Các key cấp cao nhất:", list(data.keys()))
-            print("Số dòng data:", len(data.get("data", [])))
-        except Exception as e:
-            print(f"❌ KHÔNG parse được JSON: {e}")
-
-    except Exception as e:
-        print(f"❌ Lỗi khi gọi request: {e}")
+    print("\n=== LIVECHAT RONG - Apps Script chua tra ve livechat ===")
