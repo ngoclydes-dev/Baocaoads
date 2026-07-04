@@ -6,6 +6,7 @@ Meta Ads → Telegram Daily Report Bot v2
 - Cảnh báo sắp đạt ngưỡng thanh toán (còn ≤ 2.000.000đ)
 - Cảnh báo trước 1 ngày đến ngày lập hóa đơn
 - Hỗ trợ xem báo cáo theo ngày cụ thể (custom_date)
+- Hỗ trợ xem báo cáo theo khoảng ngày (date_range)
 - SĐT mới từ Pancake (theo từng page)
 - Lịch hẹn & SĐT hợp lệ từ Google Sheet DATA
 - PH2L từ Google Sheet Livechat
@@ -598,6 +599,23 @@ if __name__ == "__main__":
             send_telegram("⚠️ Lỗi: thiếu ngày để báo cáo (CUSTOM_DATE rỗng).")
         else:
             report = build_report_with_all_data(custom_date, custom_date, "Theo ngày")
+            send_telegram(report)
+
+    elif period == "date_range":
+        date_range = os.getenv("DATE_RANGE", "")
+        if not date_range or "|" not in date_range:
+            print("❌ Thiếu DATE_RANGE hoặc sai định dạng")
+            send_telegram("⚠️ Lỗi: thiếu khoảng ngày (DATE_RANGE rỗng hoặc sai định dạng).")
+        else:
+            date_start, date_stop = date_range.split("|", 1)
+            date_start = date_start.strip()
+            date_stop  = date_stop.strip()
+            label = (
+                f"{datetime.strptime(date_start, '%Y-%m-%d').strftime('%d/%m')}"
+                f" – "
+                f"{datetime.strptime(date_stop, '%Y-%m-%d').strftime('%d/%m/%Y')}"
+            )
+            report = build_report_with_all_data(date_start, date_stop, label)
             send_telegram(report)
 
     else:
