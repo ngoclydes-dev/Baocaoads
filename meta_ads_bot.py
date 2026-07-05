@@ -305,7 +305,9 @@ def get_appointment_count(rows: list, date_start: str, date_stop: str) -> int:
         ngay_raw = row.get("NGÀY", "") or row.get("NGAY", "")
         if not ngay_raw:
             continue
-        vn_date = vn_date_from_iso(str(ngay_raw))
+        vn_date = vn_date_from_ddmmyyyy(str(ngay_raw))
+        if not vn_date:
+            vn_date = vn_date_from_iso(str(ngay_raw))
         if not vn_date or vn_date < date_start or vn_date > date_stop:
             continue
         status = (row.get("TÌNH TRẠNG CHỐT", "") or row.get("TINH TRANG CHOT", "") or "").strip()
