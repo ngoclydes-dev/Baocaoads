@@ -1,14 +1,18 @@
 import os
 import requests
-import json
 
 APPS_SCRIPT_URL = os.getenv("APPS_SCRIPT_URL")
 
 resp = requests.get(APPS_SCRIPT_URL, timeout=30)
 data = resp.json()
 
-print("CI sheet name đang tìm:", data.get("ciSheetName"))
-print("CI rows:", len(data.get("ci", [])))
-print("Debug rows:", len(data.get("debug", [])))
-print("\nRaw response (500 ky tu dau):")
-print(resp.text[:500])
+print("Livechat sheet:", data.get("livechatSheetName"))
+print("Livechat rows:", len(data.get("livechat", [])))
+
+livechat = data.get("livechat", [])
+if livechat:
+    print("\nMau dong dau:")
+    import json
+    print(json.dumps(livechat[0], ensure_ascii=False, indent=2))
+else:
+    print("LIVECHAT RONG")
