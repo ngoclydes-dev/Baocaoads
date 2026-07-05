@@ -7,7 +7,8 @@ APPS_SCRIPT_URL = os.getenv("APPS_SCRIPT_URL")
 resp = requests.get(APPS_SCRIPT_URL, timeout=30)
 data = resp.json()
 
+print("CI sheet name đang tìm:", data.get("ciSheetName"))
 print("CI rows:", len(data.get("ci", [])))
-print("\n=== DEBUG 10 DONG DAU RAW ===")
-for row in data.get("debug", []):
-    print(json.dumps(row, ensure_ascii=False))
+print("Debug rows:", len(data.get("debug", [])))
+print("\nRaw response (500 ky tu dau):")
+print(resp.text[:500])
