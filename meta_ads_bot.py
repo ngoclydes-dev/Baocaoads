@@ -513,8 +513,27 @@ def build_kpi_monthly_section(
             f"({ns_pct:.1f}%) | Còn: {ns_remaining:,.0f}đ | Dự báo: {ns_fc:,.0f}đ"
         )
 
-    return lines
+    # Cảnh báo chi phí — giống KPI ngày
+    cp_sdt  = (total_spend / sheet_phone_count) if sheet_phone_count > 0 else 0
+    cp_kd   = (total_spend / checkin_count) if checkin_count > 0 else 0
+    cp_ph2l = (total_spend / ph2l_count) if ph2l_count > 0 else 0
 
+    lines.append("-" * 16)
+    lines.append("💡 Chi phí thực tế")
+    lines.append(
+        f"{'🟢' if cp_sdt <= KPI['cp_sdt_max'] else '🔴'} "
+        f"CP/SĐT: {cp_sdt:,.0f}đ (max {KPI['cp_sdt_max']:,.0f}đ)"
+    )
+    lines.append(
+        f"{'🟢' if cp_kd <= KPI['cp_khach_den_max'] else '🔴'} "
+        f"CP/Khách đến: {cp_kd:,.0f}đ (max {KPI['cp_khach_den_max']:,.0f}đ)"
+    )
+    lines.append(
+        f"{'🟢' if cp_ph2l <= KPI['cp_ph2l_max'] else '🔴'} "
+        f"CP/PH2L: {cp_ph2l:,.0f}đ (max {KPI['cp_ph2l_max']:,.0f}đ)"
+    )
+
+    return lines
 
 def check_kpi_cost_alert(
     sheet_phone_count: int,
