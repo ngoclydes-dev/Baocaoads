@@ -347,8 +347,17 @@ def get_ph2l_count(livechat_rows: list, date_start: str, date_stop: str) -> int:
             vn_date = vn_date_from_iso(ngay_raw)
         if not vn_date or vn_date < date_start or vn_date > date_stop:
             continue
-        ghi_chu = (row.get("GHI CHÚ", "") or row.get("Ghi chú", "") or row.get("Ghi chu", "") or "").strip()
-        if ghi_chu == "PH2L":
+
+        # Kiểm tra cả 2 cột — tháng 7 dùng "CHẤT LƯỢNG MESS", tháng 6 dùng "Ghi chú"
+        status = (
+            row.get("CHẤT LƯỢNG MESS", "") or
+            row.get("Ghi chú", "") or
+            row.get("GHI CHÚ", "") or
+            row.get("Ghi chu", "") or
+            ""
+        ).strip()
+
+        if status == "PH2L":
             count += 1
     return count
 
