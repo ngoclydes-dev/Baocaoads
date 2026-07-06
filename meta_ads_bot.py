@@ -908,12 +908,6 @@ def daily_job():
         print(f"❌ Lỗi gửi báo cáo: {e}")
         send_telegram(f"⚠️ Meta Ads Bot lỗi\n{e}")
 
-    try:
-        check_spending_alert()
-    except Exception as e:
-        print(f"❌ Lỗi check spending alert: {e}")
-
-
 # ─── LẮNG NGHE NÚT BẤM ─────────────────────────────────────
 
 def listen_callbacks():
