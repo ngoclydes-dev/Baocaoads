@@ -2,7 +2,7 @@ name: Threshold Alert Check
 
 on:
   schedule:
-    - cron: '0 */2 * * *'  # Chạy mỗi 2 giờ
+    - cron: '0 * * * *'  # Chạy mỗi 1 giờ
   workflow_dispatch:
 
 jobs:
