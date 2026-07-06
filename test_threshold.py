@@ -21,7 +21,7 @@ ACCOUNT_THRESHOLDS = [
     0,
 ]
 
-THRESHOLD_ALERT_AMOUNT = 1_000_000
+THRESHOLD_ALERT_AMOUNT = 2_000_000
 
 
 def get_account_billing(account_id):
