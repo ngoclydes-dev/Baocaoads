@@ -1,0 +1,34 @@
+name: Threshold Alert Check
+
+on:
+  schedule:
+    - cron: '0 */2 * * *'  # Chạy mỗi 2 giờ
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run threshold check
+        env:
+          META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          AD_ACCOUNT_1: ${{ secrets.AD_ACCOUNT_1 }}
+          AD_ACCOUNT_2: ${{ secrets.AD_ACCOUNT_2 }}
+          AD_ACCOUNT_3: ${{ secrets.AD_ACCOUNT_3 }}
+          AD_ACCOUNT_4: ${{ secrets.AD_ACCOUNT_4 }}
+          BILL_DAY_1: ${{ secrets.BILL_DAY_1 }}
+          BILL_DAY_2: ${{ secrets.BILL_DAY_2 }}
+          BILL_DAY_3: ${{ secrets.BILL_DAY_3 }}
+          BILL_DAY_4: ${{ secrets.BILL_DAY_4 }}
+        run: python check_threshold.py
