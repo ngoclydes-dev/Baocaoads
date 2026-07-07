@@ -1,6 +1,6 @@
 import os
 import requests
-from datetime import datetime, timedelta, timezone
+import json
 
 APPS_SCRIPT_URL = os.getenv("APPS_SCRIPT_URL")
 
@@ -10,7 +10,12 @@ data = resp.json()
 ci = data.get("ci", [])
 print(f"Tong CI rows: {len(ci)}")
 
-# In 10 dong cuoi cung
-print("\n=== 10 DONG CUOI ===")
-for row in ci[-10:]:
-    print(f"ngay='{row.get('ngay')}' | ten='{row.get('ten')}' | checked={row.get('checked')}")
+# Tim dong co checked=True
+checked_rows = [r for r in ci if r.get("checked") is True]
+print(f"So dong checked=True: {len(checked_rows)}")
+
+# In tat ca dong ngay 06/07
+print("\n=== DONG NGAY 06/07 ===")
+for r in ci:
+    if r.get("ngay") == "06/07/2026":
+        print(json.dumps(r, ensure_ascii=False))
