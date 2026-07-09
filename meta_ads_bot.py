@@ -13,7 +13,7 @@ Meta Ads → Telegram Daily Report Bot v2
 - Khách đến từ Google Sheet CI
 - Theo dõi KPI hằng ngày & cả tháng (đọc từ GitHub Secrets)
 - Theo dõi ngân sách tháng
-- Cảnh báo KPI chi phí dùng chi tiêu ngày + cảnh báo KPI tháng chậm
+- Cảnh báo KPI chi phí dùng chi tiêu ngày + cảnh báo KPI tháng chậm (dùng số liệu tháng)
 """
 
 import os
@@ -527,6 +527,9 @@ def check_kpi_cost_alert(
     ph2l_count: int,
     total_spend_month: float,
     total_spend_day: float = 0,
+    sdt_month: int = 0,
+    checkin_month: int = 0,
+    ph2l_month: int = 0,
 ):
     """Gửi cảnh báo nếu chi phí vượt ngưỡng hoặc KPI tháng đang chậm."""
     alerts = []
@@ -555,10 +558,10 @@ def check_kpi_cost_alert(
                 f"({total_spend_month:,.0f}/{ngan_sach:,.0f}đ)"
             )
 
-    # Cảnh báo KPI tháng đang chậm
+    # Cảnh báo KPI tháng đang chậm — dùng số liệu cả tháng
     now_vn = datetime.now(VN_TZ)
     days_passed = now_vn.day - 1
-    if days_passed > 0:
+    if days_passed > 0 and any([sdt_month, checkin_month, ph2l_month]):
         if now_vn.month == 12:
             days_in_month = 31
         else:
@@ -570,24 +573,24 @@ def check_kpi_cost_alert(
                 return 100
             return actual / expected * 100
 
-        sdt_progress  = progress_pct(sheet_phone_count, KPI["sdt_thang"])
-        kd_progress   = progress_pct(checkin_count, KPI["khach_den_thang"])
-        ph2l_progress = progress_pct(ph2l_count, KPI["ph2l_thang"])
+        sdt_progress  = progress_pct(sdt_month, KPI["sdt_thang"])
+        kd_progress   = progress_pct(checkin_month, KPI["khach_den_thang"])
+        ph2l_progress = progress_pct(ph2l_month, KPI["ph2l_thang"])
 
         kpi_month_lines = []
         if sdt_progress < 80:
             kpi_month_lines.append(
-                f"📞 SĐT tháng: {sheet_phone_count}/{KPI['sdt_thang']} "
+                f"📞 SĐT tháng: {sdt_month}/{KPI['sdt_thang']} "
                 f"(tiến độ {sdt_progress:.0f}% so kỳ vọng)"
             )
         if kd_progress < 80:
             kpi_month_lines.append(
-                f"✅ Khách đến tháng: {checkin_count}/{KPI['khach_den_thang']} "
+                f"✅ Khách đến tháng: {checkin_month}/{KPI['khach_den_thang']} "
                 f"(tiến độ {kd_progress:.0f}% so kỳ vọng)"
             )
         if ph2l_progress < 80:
             kpi_month_lines.append(
-                f"💬 PH2L tháng: {ph2l_count}/{KPI['ph2l_thang']} "
+                f"💬 PH2L tháng: {ph2l_month}/{KPI['ph2l_thang']} "
                 f"(tiến độ {ph2l_progress:.0f}% so kỳ vọng)"
             )
 
@@ -597,7 +600,7 @@ def check_kpi_cost_alert(
             alerts.extend(kpi_month_lines)
 
     if alerts:
-        msg  = "⚠️ CẢNH BÁO KPI CHI PHÍ\n"
+        msg  = "⚠️ CẢNH BÁO KPI\n"
         msg += "-" * 32 + "\n"
         msg += "\n".join(alerts)
         msg += "\n\nVui lòng kiểm tra và điều chỉnh chiến dịch!"
@@ -887,19 +890,30 @@ def daily_job():
 
     try:
         date_start, date_stop = get_dates(1)
+        now_vn = datetime.now(VN_TZ)
+        month_start = now_vn.replace(day=1).strftime("%Y-%m-%d")
 
+        # Lấy dữ liệu sheet
         sheet_data = fetch_sheet_data()
         rows = sheet_data["data"]
         livechat_rows = sheet_data["livechat"]
         ci_rows = sheet_data["ci"]
+
+        # Số liệu ngày hôm qua
         sheet_phone_count = get_new_phone_count_sheet(rows, date_start, date_stop)
         appointment_count = get_appointment_count(rows, date_start, date_stop)
         ph2l_count = get_ph2l_count(livechat_rows, date_start, date_stop)
         checkin_count = get_checkin_count(ci_rows, date_start, date_stop)
+
+        # Số liệu cả tháng (dùng cho KPI tháng)
+        sdt_month = get_new_phone_count_sheet(rows, month_start, date_stop)
+        checkin_month = get_checkin_count(ci_rows, month_start, date_stop)
+        ph2l_month = get_ph2l_count(livechat_rows, month_start, date_stop)
+
         pancake_pages_data = get_pancake_pages_data(date_start, date_stop)
         total_spend_month = get_total_spend_month(date_stop)
 
-        # Lấy chi tiêu ngày (dùng cho CP/SĐT, CP/PH2L trong cảnh báo)
+        # Chi tiêu ngày (dùng cho CP/SĐT, CP/PH2L trong cảnh báo)
         total_spend_day = 0.0
         for account_id in AD_ACCOUNTS:
             if not account_id:
@@ -933,6 +947,9 @@ def daily_job():
             ph2l_count or 0,
             total_spend_month,
             total_spend_day,
+            sdt_month=sdt_month,
+            checkin_month=checkin_month,
+            ph2l_month=ph2l_month,
         )
 
     except Exception as e:
