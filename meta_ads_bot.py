@@ -285,7 +285,35 @@ def normalize_phone(raw_phone) -> str:
 
 
 def fetch_sheet_data() -> dict:
+    if not APPS_SCRIPT_URL:
+        print("❌ Thiếu APPS_SCRIPT_URL")
+        return {"data": [], "livechat": [], "ci": []}
+
+    resp = requests.get(APPS_SCRIPT_URL, timeout=30)
+    resp.raise_for_status()
+    payload = resp.json()
+    return {
+        "data": payload.get("data", []),
+        "livechat": payload.get("livechat", []),
+        "ci": payload.get("ci", []),
+    }
+
 def fetch_sheet_data_for_month(month: int, year: int) -> dict:
+    """Gọi Apps Script với tham số month/year cụ thể."""
+    if not APPS_SCRIPT_URL:
+        print("❌ Thiếu APPS_SCRIPT_URL")
+        return {"data": [], "livechat": [], "ci": []}
+
+    url = f"{APPS_SCRIPT_URL}?month={month}&year={year}"
+    resp = requests.get(url, timeout=30)
+    resp.raise_for_status()
+    payload = resp.json()
+    return {
+        "data": payload.get("data", []),
+        "livechat": payload.get("livechat", []),
+        "ci": payload.get("ci", []),
+    }
+    
     """Gọi Apps Script với tham số month/year cụ thể."""
     if not APPS_SCRIPT_URL:
         print("❌ Thiếu APPS_SCRIPT_URL")
