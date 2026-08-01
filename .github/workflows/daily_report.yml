@@ -14,6 +14,10 @@ on:
         description: 'Khoang ngay, dang YYYY-MM-DD|YYYY-MM-DD. Chi dien khi period = date_range'
         required: false
         default: ''
+      month_specific:
+        description: 'Thang cu the, dang YYYY-MM. Chi dien khi period = month_specific'
+        required: false
+        default: ''
 
 jobs:
   send-report:
