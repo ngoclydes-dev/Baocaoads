@@ -285,11 +285,14 @@ def normalize_phone(raw_phone) -> str:
 
 
 def fetch_sheet_data() -> dict:
+def fetch_sheet_data_for_month(month: int, year: int) -> dict:
+    """Gọi Apps Script với tham số month/year cụ thể."""
     if not APPS_SCRIPT_URL:
         print("❌ Thiếu APPS_SCRIPT_URL")
         return {"data": [], "livechat": [], "ci": []}
 
-    resp = requests.get(APPS_SCRIPT_URL, timeout=30)
+    url = f"{APPS_SCRIPT_URL}?month={month}&year={year}"
+    resp = requests.get(url, timeout=30)
     resp.raise_for_status()
     payload = resp.json()
     return {
@@ -297,7 +300,6 @@ def fetch_sheet_data() -> dict:
         "livechat": payload.get("livechat", []),
         "ci": payload.get("ci", []),
     }
-
 
 def get_appointment_count(rows: list, date_start: str, date_stop: str) -> int:
     lich_hen = 0
@@ -1079,6 +1081,58 @@ if __name__ == "__main__":
                 show_kpi=True, kpi_is_monthly=True,
             )
             send_telegram(report)
+            
+    elif period == "month_specific":
+        import calendar
+        month_specific = os.getenv("MONTH_SPECIFIC", "")
+        if not month_specific or "-" not in month_specific:
+            print("❌ Thiếu MONTH_SPECIFIC")
+            send_telegram("⚠️ Lỗi: thiếu tháng cụ thể (MONTH_SPECIFIC rỗng).")
+        else:
+            year_val, month_val = month_specific.split("-", 1)
+            year_val  = int(year_val)
+            month_val = int(month_val)
 
+            date_start = f"{year_val}-{month_val:02d}-01"
+            last_day   = calendar.monthrange(year_val, month_val)[1]
+            date_stop  = f"{year_val}-{month_val:02d}-{last_day:02d}"
+            label      = f"Tháng {month_val}/{year_val}"
+
+            try:
+                sheet_data    = fetch_sheet_data_for_month(month_val, year_val)
+                rows          = sheet_data["data"]
+                livechat_rows = sheet_data["livechat"]
+                ci_rows       = sheet_data["ci"]
+                sheet_phone_count = get_new_phone_count_sheet(rows, date_start, date_stop)
+                appointment_count = get_appointment_count(rows, date_start, date_stop)
+                ph2l_count        = get_ph2l_count(livechat_rows, date_start, date_stop)
+                checkin_count     = get_checkin_count(ci_rows, date_start, date_stop)
+            except Exception as e:
+                print(f"❌ Lỗi Sheet: {e}")
+                sheet_phone_count = None
+                appointment_count = None
+                ph2l_count        = None
+                checkin_count     = None
+
+            try:
+                pancake_pages_data = get_pancake_pages_data(date_start, date_stop)
+            except Exception as e:
+                print(f"❌ Lỗi Pancake: {e}")
+                pancake_pages_data = None
+
+            total_spend_month = get_total_spend_month(date_stop)
+
+            report = build_report(
+                date_start, date_stop, label,
+                pancake_pages_data=pancake_pages_data,
+                sheet_phone_count=sheet_phone_count,
+                appointment_count=appointment_count,
+                ph2l_count=ph2l_count,
+                checkin_count=checkin_count,
+                show_kpi=True,
+                kpi_is_monthly=True,
+                total_spend_month=total_spend_month,
+            )
+            send_telegram(report)
     else:
         daily_job()
