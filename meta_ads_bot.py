@@ -289,7 +289,7 @@ def fetch_sheet_data() -> dict:
         print("❌ Thiếu APPS_SCRIPT_URL")
         return {"data": [], "livechat": [], "ci": []}
 
-    resp = requests.get(APPS_SCRIPT_URL, timeout=30)
+    resp = requests.get(APPS_SCRIPT_URL, timeout=60)
     resp.raise_for_status()
     payload = resp.json()
     return {
@@ -305,7 +305,7 @@ def fetch_sheet_data_for_month(month: int, year: int) -> dict:
         return {"data": [], "livechat": [], "ci": []}
 
     url = f"{APPS_SCRIPT_URL}?month={month}&year={year}"
-    resp = requests.get(url, timeout=30)
+    resp = requests.get(url, timeout=60)
     resp.raise_for_status()
     payload = resp.json()
     return {
