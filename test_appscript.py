@@ -1,20 +1,26 @@
 import os
 import requests
+import json
 
 APPS_SCRIPT_URL = os.getenv("APPS_SCRIPT_URL")
 
-resp = requests.get(APPS_SCRIPT_URL, timeout=30)
+resp = requests.get(APPS_SCRIPT_URL, timeout=60)
 data = resp.json()
 
-ci = data.get("ci", [])
-print(f"CI rows: {len(ci)}")
-print(f"CI sheet: {data.get('ciSheetName')}")
+livechat = data.get("livechat", [])
+print(f"Livechat rows: {len(livechat)}")
+print(f"Livechat sheet: {data.get('livechatSheetName')}")
 
-checked = [r for r in ci if r.get("checked") is True]
-print(f"Checked=True: {len(checked)}")
+if livechat:
+    print("\nMau dong dau:")
+    print(json.dumps(livechat[0], ensure_ascii=False, indent=2))
 
-if ci:
-    print("\n5 dong dau:")
-    import json
-    for r in ci[:5]:
-        print(json.dumps(r, ensure_ascii=False))
+    # Tim dong co PH2L
+    ph2l = [r for r in livechat if
+            r.get("CHẤT LƯỢNG MESS") == "PH2L" or
+            r.get("Ghi chú") == "PH2L" or
+            r.get("GHI CHÚ") == "PH2L"]
+    print(f"\nSo dong PH2L: {len(ph2l)}")
+    if ph2l:
+        print("Mau dong PH2L dau tien:")
+        print(json.dumps(ph2l[0], ensure_ascii=False, indent=2))
