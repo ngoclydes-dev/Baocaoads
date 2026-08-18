@@ -56,6 +56,7 @@ PANCAKE_PAGES = [
     {"id": "108481465282735", "name": "Love + Rosa Quang Trung Gò Vấp"},
     {"id": "105124961775914", "name": "Love + Rosa Chăm Sóc Da Mụn"},
     {"id": "101059842189274", "name": "Love + Rosa Kỳ Đồng Quận 3"},
+    {"id": "1118351541362302", "name": "LR Vui vẻ"},
 ]
 
 BILL_DAYS = [
