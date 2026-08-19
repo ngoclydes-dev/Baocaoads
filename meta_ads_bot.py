@@ -713,7 +713,10 @@ def build_report(
             page_lines.append(f"{short}: {count}")
         for pl in page_lines[:2]:
             lines.append(pl)
-        if len(page_lines) >= 4:
+        if len(page_lines) >= 5:
+            lines.append(f"{page_lines[2]} | {page_lines[3]}")
+            lines.append(page_lines[4])
+        elif len(page_lines) == 4:
             lines.append(f"{page_lines[2]} | {page_lines[3]}")
         elif len(page_lines) == 3:
             lines.append(page_lines[2])
