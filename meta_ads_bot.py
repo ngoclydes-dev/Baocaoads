@@ -42,6 +42,9 @@ AD_ACCOUNTS = [
     os.getenv("AD_ACCOUNT_4"),
 ]
 
+# Vị trí tài khoản (từ 1) bị loại khỏi báo cáo, tổng chi tiêu, ngân sách tháng và cảnh báo ngưỡng
+REPORT_SKIP = {2, 4}  # 2 = TK 3742, 4 = TK 8132
+
 ACCOUNT_THRESHOLDS = [
     53_015_250,
     20_000_000,
@@ -197,8 +200,8 @@ def get_total_spend_month(date_stop: str) -> float:
     now_vn = datetime.now(VN_TZ)
     month_start = now_vn.replace(day=1).strftime("%Y-%m-%d")
     total = 0.0
-    for account_id in AD_ACCOUNTS:
-        if not account_id:
+    for idx, account_id in enumerate(AD_ACCOUNTS, 1):
+        if not account_id or idx in REPORT_SKIP:
             continue
         try:
             global AD_ACCOUNT_ID
@@ -677,7 +680,7 @@ def build_report(
 
     account_count = 0
     for i, account_id in enumerate(AD_ACCOUNTS, 1):
-        if not account_id:
+        if not account_id or i in REPORT_SKIP:
             continue
         account_count += 1
         if account_count > 1:
@@ -879,7 +882,7 @@ def check_spending_alert():
     alerts = []
 
     for i, account_id in enumerate(AD_ACCOUNTS, 1):
-        if not account_id:
+        if not account_id or i in REPORT_SKIP:
             continue
         try:
             info     = get_account_billing(account_id)
@@ -920,6 +923,7 @@ def check_spending_alert():
 
 
 def daily_job():
+    global AD_ACCOUNT_ID
     print(f"[{datetime.now(VN_TZ).strftime('%H:%M:%S')}] Đang lấy dữ liệu Meta Ads...")
 
     try:
@@ -949,8 +953,8 @@ def daily_job():
 
         # Chi tiêu ngày (dùng cho CP/SĐT, CP/PH2L trong cảnh báo)
         total_spend_day = 0.0
-        for account_id in AD_ACCOUNTS:
-            if not account_id:
+        for idx, account_id in enumerate(AD_ACCOUNTS, 1):
+            if not account_id or idx in REPORT_SKIP:
                 continue
             try:
                 AD_ACCOUNT_ID = account_id

@@ -16,6 +16,9 @@ AD_ACCOUNTS = [
     os.getenv("AD_ACCOUNT_4"),
 ]
 
+# Vị trí tài khoản (từ 1) không cảnh báo ngưỡng thanh toán
+THRESHOLD_SKIP = {2, 4}  # 2 = TK 3742, 4 = TK 8132
+
 ACCOUNT_THRESHOLDS = [
     53_015_250,
     20_000_000,
@@ -60,7 +63,7 @@ if __name__ == "__main__":
     alerts = []
 
     for i, account_id in enumerate(AD_ACCOUNTS, 1):
-        if not account_id:
+        if not account_id or i in THRESHOLD_SKIP:
             continue
         try:
             info = get_account_billing(account_id)
