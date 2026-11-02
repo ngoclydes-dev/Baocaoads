@@ -57,9 +57,6 @@ THRESHOLD_ALERT_AMOUNT = 2_000_000
 PANCAKE_PAGES = [
     {"id": "103905658090177", "name": "Love + Rosa Skin Center"},
     {"id": "108481465282735", "name": "Love + Rosa Quang Trung Gò Vấp"},
-    {"id": "105124961775914", "name": "Love + Rosa Chăm Sóc Da Mụn"},
-    {"id": "101059842189274", "name": "Love + Rosa Kỳ Đồng Quận 3"},
-    {"id": "1118351541362302", "name": "LR Vui vẻ"},
 ]
 
 BILL_DAYS = [
