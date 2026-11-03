@@ -56,6 +56,12 @@ ACCOUNT_THRESHOLDS = [
 
 THRESHOLD_ALERT_AMOUNT = 2_000_000
 
+# Mức cảnh báo riêng theo vị trí tài khoản (từ 1): báo khi còn <= số này đến ngưỡng
+THRESHOLD_ALERT_OVERRIDES = {
+    1: 5_000_000,  # TK 1650
+    3: 5_000_000,  # TK 5186
+}
+
 PANCAKE_PAGES = [
     {"id": "103905658090177", "name": "Love + Rosa Skin Center"},
     {"id": "108481465282735", "name": "Love + Rosa Quang Trung Gò Vấp"},
@@ -894,7 +900,7 @@ def check_spending_alert():
 
             if threshold > 0:
                 remaining = threshold - balance
-                if remaining <= THRESHOLD_ALERT_AMOUNT:
+                if remaining <= THRESHOLD_ALERT_OVERRIDES.get(i, THRESHOLD_ALERT_AMOUNT):
                     if remaining <= 0:
                         alerts.append(f"🔴 {name} ĐÃ ĐẠT/VƯỢT ngưỡng thanh toán! Vui lòng kiểm tra thẻ.")
                     else:
