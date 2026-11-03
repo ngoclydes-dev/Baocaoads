@@ -27,8 +27,10 @@ jobs:
           AD_ACCOUNT_2: ${{ secrets.AD_ACCOUNT_2 }}
           AD_ACCOUNT_3: ${{ secrets.AD_ACCOUNT_3 }}
           AD_ACCOUNT_4: ${{ secrets.AD_ACCOUNT_4 }}
+          AD_ACCOUNT_5: ${{ secrets.AD_ACCOUNT_5 }}
           BILL_DAY_1: ${{ secrets.BILL_DAY_1 }}
           BILL_DAY_2: ${{ secrets.BILL_DAY_2 }}
           BILL_DAY_3: ${{ secrets.BILL_DAY_3 }}
           BILL_DAY_4: ${{ secrets.BILL_DAY_4 }}
+          BILL_DAY_5: ${{ secrets.BILL_DAY_5 }}
         run: python check_threshold.py

@@ -40,6 +40,7 @@ AD_ACCOUNTS = [
     os.getenv("AD_ACCOUNT_2"),
     os.getenv("AD_ACCOUNT_3"),
     os.getenv("AD_ACCOUNT_4"),
+    os.getenv("AD_ACCOUNT_5"),  # TK 4985
 ]
 
 # Vị trí tài khoản (từ 1) bị loại khỏi báo cáo, tổng chi tiêu, ngân sách tháng và cảnh báo ngưỡng
@@ -50,6 +51,7 @@ ACCOUNT_THRESHOLDS = [
     20_000_000,
     31_667_350,
     13_678_063,
+    0,  # TK 4985: chưa có ngưỡng thanh toán, 0 = không cảnh báo ngưỡng
 ]
 
 THRESHOLD_ALERT_AMOUNT = 2_000_000
@@ -64,6 +66,7 @@ BILL_DAYS = [
     int(os.getenv("BILL_DAY_2", 0) or 0),
     int(os.getenv("BILL_DAY_3", 0) or 0),
     int(os.getenv("BILL_DAY_4", 0) or 0),
+    int(os.getenv("BILL_DAY_5", 0) or 0),
 ]
 
 # ─── KPI CONFIG ──────────────────────────────────────────────
