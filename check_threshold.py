@@ -30,6 +30,12 @@ ACCOUNT_THRESHOLDS = [
 
 THRESHOLD_ALERT_AMOUNT = 3_000_000
 
+# Mức cảnh báo riêng theo vị trí tài khoản (từ 1): báo khi còn <= số này đến ngưỡng
+THRESHOLD_ALERT_OVERRIDES = {
+    1: 5_000_000,  # TK 1650
+    3: 5_000_000,  # TK 5186
+}
+
 BILL_DAYS = [
     int(os.getenv("BILL_DAY_1", 0) or 0),
     int(os.getenv("BILL_DAY_2", 0) or 0),
@@ -78,7 +84,7 @@ if __name__ == "__main__":
                 remaining = threshold - balance
                 if remaining <= 0:
                     alerts.append(f"🔴 {name} ĐÃ ĐẠT/VƯỢT ngưỡng! Vui lòng kiểm tra thẻ.")
-                elif remaining <= THRESHOLD_ALERT_AMOUNT:
+                elif remaining <= THRESHOLD_ALERT_OVERRIDES.get(i, THRESHOLD_ALERT_AMOUNT):
                     alerts.append(f"⚠️ {name} còn {remaining:,.0f}đ đến ngưỡng thanh toán.")
 
             bill_day = BILL_DAYS[i-1] if i-1 < len(BILL_DAYS) else 0
