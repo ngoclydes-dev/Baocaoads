@@ -1,4 +1,5 @@
 import os
+import re
 import requests
 from datetime import datetime, timedelta, timezone
 
@@ -9,12 +10,20 @@ META_API_VERSION = "v21.0"
 META_BASE_URL = f"https://graph.facebook.com/{META_API_VERSION}"
 VN_TZ = timezone(timedelta(hours=7))
 
+def normalize_account_id(account_id):
+    """Meta Graph API cần dạng act_<số>. Tự thêm tiền tố nếu secret chỉ có số."""
+    if not account_id:
+        return account_id
+    account_id = account_id.strip()
+    return account_id if account_id.startswith("act_") else f"act_{account_id}"
+
+
 AD_ACCOUNTS = [
-    os.getenv("AD_ACCOUNT_1"),
-    os.getenv("AD_ACCOUNT_2"),
-    os.getenv("AD_ACCOUNT_3"),
-    os.getenv("AD_ACCOUNT_4"),
-    os.getenv("AD_ACCOUNT_5"),  # TK 4985
+    normalize_account_id(os.getenv("AD_ACCOUNT_1")),
+    normalize_account_id(os.getenv("AD_ACCOUNT_2")),
+    normalize_account_id(os.getenv("AD_ACCOUNT_3")),
+    normalize_account_id(os.getenv("AD_ACCOUNT_4")),
+    normalize_account_id(os.getenv("AD_ACCOUNT_5")),  # TK 4985
 ]
 
 # Vị trí tài khoản (từ 1) không cảnh báo ngưỡng thanh toán
@@ -94,7 +103,8 @@ if __name__ == "__main__":
                     alerts.append(f"📅 {name} còn 1 ngày đến ngày lập hóa đơn, vui lòng nạp tiền/kiểm tra thẻ.")
 
         except Exception as e:
-            print(f"❌ Lỗi TK {i}: {e}")
+            err_msg = re.sub(r"access_token=[^&\s]+", "access_token=***", str(e))
+            print(f"❌ Lỗi TK {i}: {err_msg}")
 
     if alerts:
         msg = f"🚨 CẢNH BÁO THANH TOÁN ({now.strftime('%H:%M %d/%m')})\n"
