@@ -35,12 +35,25 @@ TELEGRAM_CHAT_ID   = os.getenv("TELEGRAM_CHAT_ID")
 REPORT_TIME        = os.getenv("REPORT_TIME", "07:30")
 APPS_SCRIPT_URL    = os.getenv("APPS_SCRIPT_URL")
 
+def normalize_account_id(account_id):
+    """Meta Graph API cần dạng act_<số>. Tự thêm tiền tố nếu secret chỉ có số."""
+    if not account_id:
+        return account_id
+    account_id = account_id.strip()
+    return account_id if account_id.startswith("act_") else f"act_{account_id}"
+
+
+def safe_error(e) -> str:
+    """Ẩn access_token trong thông báo lỗi trước khi gửi Telegram/in log."""
+    return re.sub(r"access_token=[^&\s]+", "access_token=***", str(e))
+
+
 AD_ACCOUNTS = [
-    os.getenv("AD_ACCOUNT_1"),
-    os.getenv("AD_ACCOUNT_2"),
-    os.getenv("AD_ACCOUNT_3"),
-    os.getenv("AD_ACCOUNT_4"),
-    os.getenv("AD_ACCOUNT_5"),  # TK 4985
+    normalize_account_id(os.getenv("AD_ACCOUNT_1")),
+    normalize_account_id(os.getenv("AD_ACCOUNT_2")),
+    normalize_account_id(os.getenv("AD_ACCOUNT_3")),
+    normalize_account_id(os.getenv("AD_ACCOUNT_4")),
+    normalize_account_id(os.getenv("AD_ACCOUNT_5")),  # TK 4985
 ]
 
 # Vị trí tài khoản (từ 1) bị loại khỏi báo cáo, tổng chi tiêu, ngân sách tháng và cảnh báo ngưỡng
@@ -709,7 +722,7 @@ def build_report(
                 f"🛒 Lượt mua: {s['purchases']:,}",
             ])
         except Exception as e:
-            lines.append(f"❌ Tài khoản {i} lỗi: {e}")
+            lines.append(f"❌ Tài khoản {i} lỗi: {safe_error(e)}")
 
     total_pancake_phones = 0
     if pancake_pages_data is not None:
@@ -998,7 +1011,7 @@ def daily_job():
 
     except Exception as e:
         print(f"❌ Lỗi gửi báo cáo: {e}")
-        send_telegram(f"⚠️ Meta Ads Bot lỗi\n{e}")
+        send_telegram(f"⚠️ Meta Ads Bot lỗi\n{safe_error(e)}")
 
     try:
         check_spending_alert()
