@@ -41,8 +41,8 @@ THRESHOLD_ALERT_AMOUNT = 3_000_000
 
 # Mức cảnh báo riêng theo vị trí tài khoản (từ 1): báo khi còn <= số này đến ngưỡng
 THRESHOLD_ALERT_OVERRIDES = {
-    1: 5_000_000,  # TK 1650
-    3: 5_000_000,  # TK 5186
+    1: 10_000_000,  # TK 1650
+    3: 10_000_000,  # TK 5186
 }
 
 BILL_DAYS = [
